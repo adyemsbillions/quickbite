@@ -46,9 +46,8 @@ export default function LoginScreen() {
   }, []);
 
   const handleLogin = () => {
-    // Implement your login logic here
     console.log('Login attempt with:', { email, password });
-    // Example: router.replace('/home'); // Navigate to main app screen
+    router.push('/restaurant'); // Navigate to restaurant dashboard
   };
 
   return (
@@ -103,7 +102,10 @@ export default function LoginScreen() {
                 />
               </View>
 
-              <TouchableOpacity style={styles.forgotPasswordButton}>
+              <TouchableOpacity
+                style={styles.forgotPasswordButton}
+                onPress={() => router.push('/forgot-password')}
+              >
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
 
@@ -117,7 +119,7 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Social Login Grid (Optional, can be removed if not needed on login) */}
+            {/* Social Login Grid */}
             <View style={styles.socialSection}>
               <Text style={styles.orText}>Or continue with</Text>
               <View style={styles.socialGrid}>
@@ -126,7 +128,7 @@ export default function LoginScreen() {
                   <Text style={styles.socialText}>Facebook</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.socialCard}>
-                  <Feather name="google" size={28} color="#db4437" />
+                  <Feather name="globe" size={28} color="#db4437" />
                   <Text style={styles.socialText}>Google</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.socialCard}>
@@ -169,11 +171,9 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'center', // Center content vertically
+    justifyContent: 'center',
     paddingVertical: 60,
   },
-
-  // Login Card
   loginCard: {
     backgroundColor: 'rgba(255,255,255,0.95)',
     borderRadius: 25,
@@ -251,8 +251,6 @@ const styles = StyleSheet.create({
   buttonIcon: {
     marginLeft: 5,
   },
-
-  // Social Section (copied from HomeScreen)
   socialSection: {
     alignItems: 'center',
     marginVertical: 20,
@@ -289,8 +287,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 5,
   },
-
-  // Bottom Section (copied from HomeScreen)
   bottomSection: {
     alignItems: 'center',
     marginBottom: 20,

@@ -3,9 +3,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Dimensions,
   ImageBackground,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -18,9 +23,10 @@ const { width, height } = Dimensions.get('window');
 
 export default function SignUpScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -46,18 +52,66 @@ export default function SignUpScreen() {
     ]).start();
   }, []);
 
-  const handleSignUp = () => {
-    // Implement your sign-up logic here
-    if (password !== confirmPassword) {
-      alert("Passwords don't match!");
+  const handleSignUp = async () => {
+    if (!email || !password || !confirmPassword) {
+      Alert.alert('Error', 'Please fill in all fields');
       return;
     }
-    console.log('Sign Up attempt with:', { email, password });
-    // Example: router.replace('/home'); // Navigate to main app screen after successful signup
+
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+   const response = await fetch('http://192.168.80.38/quickbite/api/signup.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password,
+          confirmPassword,
+        }),
+      });
+
+      const contentType = response.headers.get('content-type');
+      const text = await response.text();
+      console.log('Raw response:', text);
+
+      if (!contentType || !contentType.includes('application/json')) {
+        Alert.alert('Error', 'Server returned an invalid response. Please try again later.');
+        console.error('Invalid content type:', contentType);
+        return;
+      }
+
+      const data = JSON.parse(text);
+      if (response.ok) {
+        Alert.alert('Success', data.message);
+        router.push('/login');
+      } else {
+        Alert.alert('Error', data.error || 'Failed to register');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', 'Network error: ' + error.message);
+      console.error('Network error details:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <>
+    <SafeAreaView style={styles.container}>
       <StatusBar style="light" translucent backgroundColor="transparent" />
       <ImageBackground
         source={require('../assets/images/background.jpg')}
@@ -69,101 +123,108 @@ export default function SignUpScreen() {
           colors={['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.8)']}
           style={styles.overlay}
         >
-          <Animated.View
-            style={[
-              styles.content,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
-              },
-            ]}
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.keyboardView}
           >
-            {/* Sign Up Card */}
-            <View style={styles.signupCard}>
-              <Text style={styles.cardTitle}>Join Us!</Text>
-              <Text style={styles.cardSubtitle}>Create your account</Text>
-
-              <View style={styles.inputGroup}>
-                <Feather name="mail" size={20} color="#666" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Email"
-                  placeholderTextColor="#999"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  value={email}
-                  onChangeText={setEmail}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Feather name="lock" size={20} color="#666" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Password"
-                  placeholderTextColor="#999"
-                  secureTextEntry
-                  value={password}
-                  onChangeText={setPassword}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Feather name="lock" size={20} color="#666" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Confirm Password"
-                  placeholderTextColor="#999"
-                  secureTextEntry
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                />
-              </View>
-
-              <TouchableOpacity
-                style={styles.primaryButton}
-                onPress={handleSignUp}
-                activeOpacity={0.9}
+            <ScrollView contentContainerStyle={styles.scrollContent}>
+              <Animated.View
+                style={[
+                  styles.content,
+                  {
+                    opacity: fadeAnim,
+                    transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
+                  },
+                ]}
               >
-                <Text style={styles.primaryButtonText}>Sign Up</Text>
-                <Feather name="user-plus" size={20} color="#fff" style={styles.buttonIcon} />
-              </TouchableOpacity>
-            </View>
+                <View style={styles.signupCard}>
+                  <Text style={styles.cardTitle}>Join QuickBite!</Text>
+                  <Text style={styles.cardSubtitle}>Create your account</Text>
 
-            {/* Social Login Grid (Optional, can be removed if not needed on signup) */}
-            <View style={styles.socialSection}>
-              <Text style={styles.orText}>Or sign up with</Text>
-              <View style={styles.socialGrid}>
-                <TouchableOpacity style={styles.socialCard}>
-                  <Feather name="facebook" size={28} color="#3b5998" />
-                  <Text style={styles.socialText}>Facebook</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.socialCard}>
-                  <Feather name="google" size={28} color="#db4437" />
-                  <Text style={styles.socialText}>Google</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.socialCard}>
-                  <Feather name="twitter" size={28} color="#1da1f2" />
-                  <Text style={styles.socialText}>Twitter</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+                  <View style={styles.inputGroup}>
+                    <Feather name="mail" size={20} color="#666" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Email"
+                      placeholderTextColor="#999"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      value={email}
+                      onChangeText={setEmail}
+                    />
+                  </View>
 
-            {/* Bottom CTA */}
-            <View style={styles.bottomSection}>
-              <TouchableOpacity
-                style={styles.loginButton}
-                onPress={() => router.push('/login')}
-              >
-                <Text style={styles.loginText}>
-                  Already have an account? <Text style={styles.loginLink}>Login</Text>
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
+                  <View style={styles.inputGroup}>
+                    <Feather name="lock" size={20} color="#666" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Password"
+                      placeholderTextColor="#999"
+                      secureTextEntry
+                      value={password}
+                      onChangeText={setPassword}
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Feather name="lock" size={20} color="#666" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Confirm Password"
+                      placeholderTextColor="#999"
+                      secureTextEntry
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                    />
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.primaryButton}
+                    onPress={handleSignUp}
+                    disabled={isLoading}
+                    activeOpacity={0.9}
+                  >
+                    <Text style={styles.primaryButtonText}>
+                      {isLoading ? 'Creating Account...' : 'Sign Up'}
+                    </Text>
+                    <Feather name="user-plus" size={20} color="#fff" style={styles.buttonIcon} />
+                  </TouchableOpacity>
+
+                  <View style={styles.socialSection}>
+                    <Text style={styles.orText}>Or sign up with</Text>
+                    <View style={styles.socialGrid}>
+                      <TouchableOpacity style={styles.socialCard}>
+                        <Feather name="facebook" size={28} color="#3b5998" />
+                        <Text style={styles.socialText}>Facebook</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.socialCard}>
+                        <Feather name="chrome" size={28} color="#db4437" />
+                        <Text style={styles.socialText}>Google</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.socialCard}>
+                        <Feather name="twitter" size={28} color="#1da1f2" />
+                        <Text style={styles.socialText}>Twitter</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  <View style={styles.bottomSection}>
+                    <TouchableOpacity
+                      style={styles.loginButton}
+                      onPress={() => router.push('/login')}
+                    >
+                      <Text style={styles.loginText}>
+                        Already have an account? <Text style={styles.loginLink}>Login</Text>
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </Animated.View>
+            </ScrollView>
+          </KeyboardAvoidingView>
         </LinearGradient>
       </ImageBackground>
-    </>
+    </SafeAreaView>
   );
 }
 
@@ -172,7 +233,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   imageStyle: {
-    resizeMode: 'cover',
+    resizeMode: 'cover' as const,
     top: 0,
   },
   overlay: {
@@ -180,13 +241,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 20,
   },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
   content: {
     flex: 1,
-    justifyContent: 'center', // Center content vertically
+    justifyContent: 'center',
     paddingVertical: 60,
   },
-
-  // Sign Up Card
   signupCard: {
     backgroundColor: 'rgba(255,255,255,0.95)',
     borderRadius: 25,
@@ -255,14 +321,12 @@ const styles = StyleSheet.create({
   buttonIcon: {
     marginLeft: 5,
   },
-
-  // Social Section (copied from HomeScreen)
   socialSection: {
     alignItems: 'center',
     marginVertical: 20,
   },
   orText: {
-    color: 'rgba(255,255,255,0.8)',
+    color: '#666',
     fontSize: 16,
     marginBottom: 20,
     fontWeight: '500',
@@ -293,8 +357,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 5,
   },
-
-  // Bottom Section (copied from HomeScreen)
   bottomSection: {
     alignItems: 'center',
     marginBottom: 20,
@@ -308,12 +370,12 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.3)',
   },
   loginText: {
-    color: '#fff',
+    color: '#333',
     fontSize: 16,
     fontWeight: '500',
   },
   loginLink: {
-    color: '#4ade80',
+    color: '#ff5722',
     fontWeight: '700',
   },
 });
