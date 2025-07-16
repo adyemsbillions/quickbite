@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Dimensions,
   ImageBackground,
@@ -20,6 +21,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -45,9 +47,51 @@ export default function LoginScreen() {
     ]).start();
   }, []);
 
-  const handleLogin = () => {
-    console.log('Login attempt with:', { email, password });
-    router.push('/restaurant'); // Navigate to restaurant dashboard
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('http://192.168.80.38/quickbite/api/login.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      const contentType = response.headers.get('content-type');
+      const text = await response.text();
+      console.log('Raw response:', text);
+
+      if (!contentType || !contentType.includes('application/json')) {
+        Alert.alert('Error', 'Server returned an invalid response. Please try again later.');
+        console.error('Invalid content type:', contentType);
+        return;
+      }
+
+      const data = JSON.parse(text);
+      if (response.ok) {
+        Alert.alert('Success', data.message || 'Logged in successfully');
+        router.push('/restaurant');
+      } else {
+        Alert.alert('Error', data.error || 'Login failed');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', 'Network error: ' + error.message);
+      console.error('Network error details:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -112,9 +156,12 @@ export default function LoginScreen() {
               <TouchableOpacity
                 style={styles.primaryButton}
                 onPress={handleLogin}
+                disabled={isLoading}
                 activeOpacity={0.9}
               >
-                <Text style={styles.primaryButtonText}>Login</Text>
+                <Text style={styles.primaryButtonText}>
+                  {isLoading ? 'Logging in...' : 'Login'}
+                </Text>
                 <Feather name="log-in" size={20} color="#fff" style={styles.buttonIcon} />
               </TouchableOpacity>
             </View>

@@ -40,9 +40,7 @@ export default function RootLayout() {
       <Stack.Screen
         name="restaurant"
         options={{
-          title: 'Restaurant Dashboard',
-          headerStyle: { backgroundColor: '#f97316' },
-          headerTintColor: '#fff',
+          headerShown: false, // No header for dashboard screen
         }}
       />
       <Stack.Screen
