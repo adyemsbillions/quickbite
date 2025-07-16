@@ -1,29 +1,58 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
-
-import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
-  if (!loaded) {
-    // Async font loading only occurs in development.
-    return null;
-  }
-
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <Stack
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#f97316', // Orange background for other screens
+        },
+        headerTintColor: '#fff', // White text/icon color
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    >
+      <Stack.Screen
+        name="index"
+        options={{
+          headerShown: false, // No header for home screen
+        }}
+      />
+      <Stack.Screen
+        name="login"
+        options={{
+          headerShown: false, // No header for login screen
+        }}
+      />
+      <Stack.Screen
+        name="signup"
+        options={{
+          headerShown: false, // No header for signup screen
+        }}
+      />
+      <Stack.Screen
+        name="forgot-password"
+        options={{
+          headerShown: false, // No header for forgot password screen
+        }}
+      />
+      <Stack.Screen
+        name="restaurant"
+        options={{
+          title: 'Restaurant Dashboard',
+          headerStyle: { backgroundColor: '#f97316' },
+          headerTintColor: '#fff',
+        }}
+      />
+      <Stack.Screen
+        name="admin"
+        options={{
+          title: 'Admin Panel',
+          headerStyle: { backgroundColor: '#f97316' },
+          headerTintColor: '#fff',
+        }}
+      />
+    </Stack>
   );
 }
