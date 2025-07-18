@@ -1,4 +1,5 @@
 import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -77,8 +78,11 @@ export default function LoginScreen() {
 
       const data = JSON.parse(text);
       if (response.ok) {
+        // Store the user ID in AsyncStorage
+        await AsyncStorage.setItem('id', data.user.id.toString());
+        console.log('Stored ID:', data.user.id); // Debug log
         Alert.alert('Success', data.message || 'Logged in successfully');
-        router.push('/restaurant');
+        router.push('/profile'); // Navigate to profile instead of restaurant
       } else {
         Alert.alert('Error', data.error || 'Login failed');
       }

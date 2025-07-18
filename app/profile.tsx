@@ -1,7 +1,9 @@
 import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   Dimensions,
   Image,
   Modal,
@@ -34,33 +36,55 @@ export default function Profile() {
   const [modalMessage, setModalMessage] = useState('');
   const [modalType, setModalType] = useState('success'); // 'success' or 'error'
 
-  // Simulate fetching user data (replace with actual API call)
+  // Fetch user data on mount
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const response = await fetch('http://192.168.231.38/quickbite/api/get_user.php', {
+        const id = await AsyncStorage.getItem('id');
+        console.log('Retrieved ID from AsyncStorage:', id); // Debug log
+        if (!id) {
+          throw new Error('No user ID found. Please log in.');
+        }
+
+        const response = await fetch(`http://192.168.231.38/quickbite/api/get_user.php?id=${id}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
           },
         });
-        const userData = await response.json();
-        if (userData.success) {
-          setName(userData.data.name || 'Jenny Doe');
-          setEmail(userData.data.email || 'jenny@example.com');
-          setLocation(userData.data.location || 'N.Y Bronx');
-          setGender(userData.data.gender || '');
+        const result = await response.json();
+        console.log('Fetch User Data Response:', result); // Debug
+        if (result.success) {
+          const user = result.data;
+          setName(user.name || '');
+          setEmail(user.email || '');
+          setLocation(user.location || '');
+          setGender(user.gender || '');
+        } else {
+          throw new Error(result.message || 'Failed to fetch user data');
         }
       } catch (error) {
-        console.error('Error fetching user data:', error);
+        console.error('Error fetching user data:', error.message);
+        Alert.alert('Error', error.message, [
+          { text: 'OK', onPress: () => router.push('/login') }, // Adjust '/login' to your login route
+        ]);
       }
     };
     fetchUserData();
-  }, []);
+  }, [router]);
 
   // Function to handle form submission
   const handleSave = async () => {
-    const userData = { name, location, gender };
+    const id = await AsyncStorage.getItem('id');
+    console.log('ID during save:', id); // Debug log
+    if (!id) {
+      setModalMessage('No user ID found. Please log in.');
+      setModalType('error');
+      setModalVisible(true);
+      return;
+    }
+
+    const userData = { id, name, location, gender };
 
     try {
       const response = await fetch('http://192.168.231.38/quickbite/api/update_profile.php', {
@@ -103,7 +127,7 @@ export default function Profile() {
           <View style={styles.userInfo}>
             <Image source={PLACEHOLDER_AVATAR} style={styles.avatar} />
             <View>
-              <Text style={styles.greeting}>Hello {name}</Text>
+              <Text style={styles.greeting}>Hello {name || 'User'}</Text>
               <View style={styles.location}>
                 <Feather name="map-pin" size={16} color="#4ade80" />
                 <Text style={styles.locationText}>{location}</Text>
@@ -162,7 +186,13 @@ export default function Profile() {
             <Feather name="lock" size={20} color="#333" />
             <Text style={styles.settingText}>Change Password</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => {
+              AsyncStorage.removeItem('id');
+              router.push('/login'); // Adjust to your login route
+            }}
+          >
             <Feather name="log-out" size={20} color="#333" />
             <Text style={styles.settingText}>Logout</Text>
           </TouchableOpacity>
