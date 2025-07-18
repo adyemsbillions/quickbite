@@ -22,7 +22,7 @@ const PLACEHOLDER_BURGER_CATEGORY = require('../assets/images/burger_category.jp
 const PLACEHOLDER_PIZZA_CATEGORY = require('../assets/images/pizza_category.jpg'); // Create this or use a URL
 const PLACEHOLDER_SALAD_CATEGORY = require('../assets/images/salad_category.jpg'); // Create this or use a URL
 const PLACEHOLDER_CHICKEN_CATEGORY = require('../assets/images/chicken_category.jpg'); // Create this or use a URL
-const PLACEHOLDER_PROMO_BURGER = require('../assets/images/promo_burger.jpg'); // Create this or use a URL
+const PLACEHOLDER_PROMO_BURGER = require('../assets/images/promo_burger.png'); // Create this or use a URL
 const PLACEHOLDER_RECIPE_CHICKEN = require('../assets/images/recipe_chicken.jpg'); // Create this or use a URL
 const PLACEHOLDER_RECIPE_BURGER = require('../assets/images/recipe_burger.jpg'); // Create this or use a URL
 
@@ -68,14 +68,14 @@ export default function Dashboard() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f8f8f8" />
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       <ScrollView
         style={styles.scrollViewContent}
         contentContainerStyle={{ paddingBottom: insets.bottom + 80 }} // Add padding for bottom nav
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        {/* Header (now just user info with white background) */}
+        <View style={[styles.header, { paddingTop: insets.top, backgroundColor: '#ffffff' }]}>
           <View style={styles.userInfo}>
             <Image source={PLACEHOLDER_AVATAR} style={styles.avatar} />
             <View>
@@ -169,19 +169,19 @@ export default function Dashboard() {
 
       {/* Bottom Navigation */}
       <View style={[styles.bottomNav, { paddingBottom: insets.bottom }]}>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/')}>
           <Feather name="home" size={24} color="#ff5722" />
           <Text style={styles.navTextActive}>Home</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/search')}>
           <Feather name="search" size={24} color="#999" />
           <Text style={styles.navText}>Search</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/cart')}>
           <Feather name="shopping-cart" size={24} color="#999" />
           <Text style={styles.navText}>My Cart</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/profile')}>
           <Feather name="user" size={24} color="#999" />
           <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>
@@ -193,7 +193,7 @@ export default function Dashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: '#ffffff', // Ensure entire screen starts white
   },
   scrollViewContent: {
     flex: 1,
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingBottom: 15,
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff', // White background to match your request
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     shadowColor: '#000',

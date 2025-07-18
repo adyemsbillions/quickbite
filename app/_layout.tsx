@@ -4,49 +4,56 @@ export default function RootLayout() {
   return (
     <Stack
       screenOptions={{
-        headerStyle: {
-          backgroundColor: '#f97316', // Orange background for other screens
-        },
-        headerTintColor: '#fff', // White text/icon color
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
+        headerShown: false, // Hide header for all screens by default
       }}
     >
       <Stack.Screen
         name="index"
         options={{
-          headerShown: false, // No header for home screen
+          headerShown: false, // Explicitly hide for home
         }}
       />
       <Stack.Screen
         name="login"
         options={{
-          headerShown: false, // No header for login screen
+          headerShown: false,
         }}
       />
       <Stack.Screen
         name="signup"
         options={{
-          headerShown: false, // No header for signup screen
+          headerShown: false,
         }}
       />
       <Stack.Screen
         name="forgot-password"
         options={{
-          headerShown: false, // No header for forgot password screen
+          headerShown: false,
         }}
       />
       <Stack.Screen
-        name="restaurant"
+        name="search"
         options={{
-          headerShown: false, // No header for dashboard screen
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="cart"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="profile"
+        options={{
+          headerShown: false,
         }}
       />
       <Stack.Screen
         name="admin"
         options={{
           title: 'Admin Panel',
+          headerShown: true, // Only show header for admin if needed
           headerStyle: { backgroundColor: '#f97316' },
           headerTintColor: '#fff',
         }}
