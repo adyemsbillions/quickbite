@@ -2,15 +2,15 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
-    Dimensions,
-    Image,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  Image,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -40,24 +40,21 @@ const popularRecipes = [
     id: '1',
     name: 'Golden Spicy Chicken',
     description: 'Marinated with a blend of...',
-    time: '30 Min',
-    price: '$70.00',
+    price: '₦70.00',
     image: PLACEHOLDER_RECIPE_CHICKEN,
   },
   {
     id: '2',
     name: 'Cheese Burger Nagi',
     description: 'The Cheese Burger Nagi is...',
-    time: '30 Min',
-    price: '$60.00',
+    price: '₦60.00',
     image: PLACEHOLDER_RECIPE_BURGER,
   },
   {
     id: '3',
     name: 'Veggie Delight Pizza',
     description: 'Fresh vegetables and mozzarella...',
-    time: '25 Min',
-    price: '$55.00',
+    price: '₦55.00',
     image: PLACEHOLDER_PIZZA_CATEGORY, // Reusing for example
   },
 ];
@@ -148,10 +145,6 @@ export default function Dashboard() {
               <TouchableOpacity style={styles.heartIcon}>
                 <Feather name="heart" size={18} color="#ff5722" />
               </TouchableOpacity>
-              <View style={styles.timeBadge}>
-                <Feather name="clock" size={12} color="#fff" />
-                <Text style={styles.timeText}>{recipe.time}</Text>
-              </View>
               <View style={styles.recipeInfo}>
                 <Text style={styles.recipeName}>{recipe.name}</Text>
                 <Text style={styles.recipeDescription}>{recipe.description}</Text>
@@ -424,22 +417,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  timeBadge: {
-    position: 'absolute',
-    bottom: 10,
-    left: 10,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 15,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  timeText: {
-    color: '#fff',
-    fontSize: 12,
-    marginLeft: 5,
-  },
   recipeInfo: {
     padding: 15,
   },
@@ -462,8 +439,8 @@ const styles = StyleSheet.create({
   },
   recipePrice: {
     fontSize: 18,
-    fontWeight: '800',
-    color: '#4ade80', // Green color for price
+    fontWeight: '900', // Increased to extra bold
+    color: '#e63946', // Bold red for better visibility
   },
   addIcon: {
     backgroundColor: '#ff5722',

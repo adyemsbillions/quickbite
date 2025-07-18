@@ -1,13 +1,16 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Dimensions,
   Image,
+  Modal,
+  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -22,23 +25,88 @@ export default function Profile() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
+  // State for form data
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [location, setLocation] = useState('');
+  const [gender, setGender] = useState('');
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
+  const [modalType, setModalType] = useState('success'); // 'success' or 'error'
+
+  // Simulate fetching user data (replace with actual API call)
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const response = await fetch('http://192.168.231.38/quickbite/api/get_user.php', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        const userData = await response.json();
+        if (userData.success) {
+          setName(userData.data.name || 'Jenny Doe');
+          setEmail(userData.data.email || 'jenny@example.com');
+          setLocation(userData.data.location || 'N.Y Bronx');
+          setGender(userData.data.gender || '');
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      }
+    };
+    fetchUserData();
+  }, []);
+
+  // Function to handle form submission
+  const handleSave = async () => {
+    const userData = { name, location, gender };
+
+    try {
+      const response = await fetch('http://192.168.231.38/quickbite/api/update_profile.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+
+      const result = await response.json();
+      console.log('API Response:', result); // Debug the response
+
+      if (result.success) {
+        setModalMessage(result.message || 'Profile updated successfully!');
+        setModalType('success');
+      } else {
+        setModalMessage(result.message || 'Failed to update profile. Please try again.');
+        setModalType('error');
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      setModalMessage('An error occurred. Please check your network.');
+      setModalType('error');
+    } finally {
+      setModalVisible(true);
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f8f8f8" />
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       <ScrollView
         style={styles.scrollViewContent}
         contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <View style={[styles.header, { paddingTop: insets.top, backgroundColor: '#ffffff' }]}>
           <View style={styles.userInfo}>
             <Image source={PLACEHOLDER_AVATAR} style={styles.avatar} />
             <View>
-              <Text style={styles.greeting}>Hello Jenny</Text>
+              <Text style={styles.greeting}>Hello {name}</Text>
               <View style={styles.location}>
                 <Feather name="map-pin" size={16} color="#4ade80" />
-                <Text style={styles.locationText}>N.Y Bronx</Text>
+                <Text style={styles.locationText}>{location}</Text>
               </View>
             </View>
           </View>
@@ -51,9 +119,35 @@ export default function Profile() {
         <View style={styles.profileSection}>
           <Text style={styles.profileTitle}>Profile Details</Text>
           <View style={styles.profileCard}>
-            <Text style={styles.profileInfo}>Name: Jenny Doe</Text>
-            <Text style={styles.profileInfo}>Email: jenny@example.com</Text>
-            <Text style={styles.profileInfo}>Location: N.Y Bronx</Text>
+            <TextInput
+              style={styles.profileInfoInput}
+              value={name}
+              onChangeText={setName}
+              placeholder="Name"
+            />
+            <TextInput
+              style={[styles.profileInfoInput, styles.readOnlyInput]}
+              value={email}
+              editable={false} // Read-only email
+              placeholder="Email"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <TextInput
+              style={styles.profileInfoInput}
+              value={location}
+              onChangeText={setLocation}
+              placeholder="Location"
+            />
+            <TextInput
+              style={styles.profileInfoInput}
+              value={gender}
+              onChangeText={setGender}
+              placeholder="Gender (e.g., Male/Female/Other)"
+            />
+            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+              <Text style={styles.saveButtonText}>Save Changes</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -94,6 +188,27 @@ export default function Profile() {
           <Text style={styles.navTextActive}>Profile</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Custom Modal */}
+      <Modal
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalText}>
+              {modalType === 'success' ? '✅ ' : '❌ '} {modalMessage}
+            </Text>
+            <Pressable
+              style={styles.modalButton}
+              onPress={() => setModalVisible(false)}
+            >
+              <Text style={styles.modalButtonText}>OK</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -101,7 +216,7 @@ export default function Profile() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: '#ffffff',
   },
   scrollViewContent: {
     flex: 1,
@@ -112,7 +227,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingBottom: 15,
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     shadowColor: '#000',
@@ -177,10 +292,29 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  profileInfo: {
+  profileInfoInput: {
     fontSize: 16,
     color: '#666',
-    marginBottom: 10,
+    marginBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+    paddingBottom: 5,
+  },
+  readOnlyInput: {
+    color: '#999',
+  },
+  saveButton: {
+    backgroundColor: '#ff5722',
+    borderRadius: 25,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    alignSelf: 'flex-start',
+    marginTop: 15,
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
   settingsSection: {
     paddingHorizontal: 20,
@@ -236,6 +370,40 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#ff5722',
     marginTop: 4,
+    fontWeight: '700',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalText: {
+    fontSize: 16,
+    color: '#333',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalButton: {
+    backgroundColor: '#ff5722',
+    borderRadius: 25,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
     fontWeight: '700',
   },
 });
