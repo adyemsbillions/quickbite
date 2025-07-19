@@ -1,17 +1,19 @@
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  Dimensions,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Dimensions,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { WebView } from 'react-native-webview';
 
 interface CartItem {
   id: string;
@@ -26,13 +28,18 @@ const { width } = Dimensions.get('window');
 const PLACEHOLDER_AVATAR = require('../assets/images/avatar.jpg');
 const PLACEHOLDER_RECIPE_CHICKEN = require('../assets/images/recipe_chicken.jpg');
 
-export default function Cart() {
+export default function Checkout() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const webviewRef = useRef<WebView>(null);
 
   const [name, setName] = useState<string>('');
   const [location, setLocation] = useState<string>('');
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [deliveryAddress, setDeliveryAddress] = useState<string>('');
+  const [phoneNumber, setPhoneNumber] = useState<string>('');
+  const [userLocation, setUserLocation] = useState<string>(''); // Manual location input
+  const [total, setTotal] = useState<string>('0.00');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -52,14 +59,17 @@ export default function Cart() {
           } else {
             console.error('Failed to fetch user data:', userResult.message);
           }
-        } else {
-          console.warn('No user ID found. Defaulting to empty name and location.');
         }
 
         // Fetch cart data
         const cart = await AsyncStorage.getItem('cart');
         if (cart) {
-          setCartItems(JSON.parse(cart));
+          const items = JSON.parse(cart);
+          setCartItems(items);
+          const calculatedTotal = items
+            .reduce((sum, item) => sum + parseFloat(item.price.replace('₦', '') || '0'), 0)
+            .toFixed(2);
+          setTotal(calculatedTotal);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -68,23 +78,25 @@ export default function Cart() {
     fetchData();
   }, []);
 
-  const removeItem = async (id: string) => {
-    try {
-      const updatedCart = cartItems.filter((item) => item.id !== id);
-      setCartItems(updatedCart);
-      await AsyncStorage.setItem('cart', JSON.stringify(updatedCart));
-    } catch (error) {
-      console.error('Error removing item:', error);
+  const handlePayment = () => {
+    const paystackUrl = `https://checkout.paystack.com/v3/pay/${Math.round(parseFloat(total.replace('₦', '') || '0') * 100)}?key=pk_test_b689ff5efbeea84350ad6ba688f3389fb548b9b3&email=user@example.com&reference=TXN_${new Date().getTime()}¤cy=NGN`;
+    console.log('Loading Paystack URL:', paystackUrl);
+    webviewRef.current?.loadUrl(paystackUrl);
+  };
+
+  const onNavigationStateChange = (navState) => {
+    console.log('Navigation state changed:', navState.url);
+    if (navState.url.includes('success')) {
+      console.log('Payment successful');
+      router.push('/');
+    } else if (navState.url.includes('cancel')) {
+      console.log('Payment cancelled');
     }
   };
 
-  const total = cartItems
-    .reduce((sum, item) => sum + parseFloat(item.price.replace('₦', '') || '0'), 0)
-    .toFixed(2);
-
   return (
     <View style={styles.container}>
-      <View style={[styles.statusBarPlaceholder, { backgroundColor: '#f8f8f8' }]} />
+      <View style={[styles.statusBarPlaceholder, { backgroundColor: '#f8f8f8', height: insets.top }]} />
       <ScrollView
         style={styles.scrollViewContent}
         contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
@@ -102,49 +114,73 @@ export default function Cart() {
               </View>
             </View>
           </View>
-          <TouchableOpacity style={styles.notificationButton}>
-            <Feather name="bell" size={24} color="#333" />
+          <TouchableOpacity style={styles.notificationButton} onPress={() => router.push('/cart')}>
+            <Feather name="arrow-left" size={24} color="#333" />
           </TouchableOpacity>
         </View>
 
-        {/* Cart Items */}
+        {/* Delivery Information */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>My Cart</Text>
+          <Text style={styles.sectionTitle}>Delivery Information</Text>
+        </View>
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Delivery Address"
+            value={deliveryAddress}
+            onChangeText={setDeliveryAddress}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Phone Number"
+            value={phoneNumber}
+            onChangeText={setPhoneNumber}
+            keyboardType="phone-pad"
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Your Location"
+            value={userLocation}
+            onChangeText={setUserLocation}
+          />
+        </View>
+
+        {/* Order Summary */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Order Summary</Text>
         </View>
         {cartItems.length === 0 ? (
-          <Text style={styles.emptyCartText}>Your cart is empty.</Text>
+          <Text style={styles.emptyCartText}>No items in cart.</Text>
         ) : (
           cartItems.map((item) => (
-            <View key={item.id} style={styles.cartItem}>
-              <Image
-                source={
-                  item.image_url
-                    ? { uri: `http://192.168.231.38/quickbite/api/${item.image_url}` }
-                    : PLACEHOLDER_RECIPE_CHICKEN
-                }
-                style={styles.cartImage}
-                onError={(e) => console.log(`Image load error for ${item.image_url}:`, e.nativeEvent.error)}
-              />
-              <View style={styles.cartInfo}>
-                <Text style={styles.cartName}>{item.name}</Text>
-                <Text style={styles.cartPrice}>{`₦${item.price}`}</Text>
-              </View>
-              <TouchableOpacity style={styles.removeButton} onPress={() => removeItem(item.id)}>
-                <Feather name="trash-2" size={20} color="#ff5722" />
-              </TouchableOpacity>
+            <View key={item.id} style={styles.summaryItem}>
+              <Text style={styles.summaryName}>{item.name}</Text>
+              <Text style={styles.summaryPrice}>{`₦${item.price}`}</Text>
             </View>
           ))
         )}
+        <View style={styles.totalRow}>
+          <Text style={styles.totalText}>Total:</Text>
+          <Text style={styles.totalAmount}>{`₦${total}`}</Text>
+        </View>
 
-        {/* Total and Checkout */}
+        {/* Pay Now Button */}
         {cartItems.length > 0 && (
-          <View style={styles.totalSection}>
-            <Text style={styles.totalText}>Total: ₦{total}</Text>
-            <TouchableOpacity style={styles.checkoutButton} onPress={() => router.push('/checkout')}>
-              <Text style={styles.checkoutText}>Checkout</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity style={styles.payButton} onPress={handlePayment}>
+            <Text style={styles.payText}>Pay Now</Text>
+          </TouchableOpacity>
         )}
+
+        {/* WebView for Payment */}
+        <WebView
+          ref={webviewRef}
+          style={styles.webview}
+          source={{ uri: 'about:blank' }} // Initial blank page
+          onNavigationStateChange={onNavigationStateChange}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          startInLoadingState={true}
+        />
       </ScrollView>
 
       {/* Bottom Navigation */}
@@ -158,8 +194,8 @@ export default function Cart() {
           <Text style={styles.navText}>Search</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => router.push('/cart')}>
-          <Feather name="shopping-cart" size={24} color="#ff5722" />
-          <Text style={styles.navTextActive}>My Cart</Text>
+          <Feather name="shopping-cart" size={24} color="#999" />
+          <Text style={styles.navText}>My Cart</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => router.push('/profile')}>
           <Feather name="user" size={24} color="#999" />
@@ -176,7 +212,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f8f8',
   },
   statusBarPlaceholder: {
-    height: 0, // Removed dependency on StatusBar.currentHeight to avoid errors
+    backgroundColor: '#f8f8f8',
   },
   scrollViewContent: {
     flex: 1,
@@ -245,76 +281,72 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#333',
   },
-  cartItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 15,
-    marginHorizontal: 20,
-    marginBottom: 10,
-    borderRadius: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  inputContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
   },
-  cartImage: {
-    width: 60,
-    height: 60,
+  input: {
+    height: 50,
+    borderColor: '#ddd',
+    borderWidth: 1,
     borderRadius: 10,
-    marginRight: 15,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+    backgroundColor: '#fff',
   },
-  cartInfo: {
-    flex: 1,
+  summaryItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    marginBottom: 5,
+    borderRadius: 10,
   },
-  cartName: {
+  summaryName: {
     fontSize: 16,
-    fontWeight: '600',
     color: '#333',
   },
-  cartPrice: {
+  summaryPrice: {
     fontSize: 16,
     color: '#4ade80',
-    marginTop: 5,
   },
-  removeButton: {
-    padding: 5,
-  },
-  emptyCartText: {
-    textAlign: 'center',
-    fontSize: 16,
-    color: '#666',
-    padding: 20,
-  },
-  totalSection: {
-    padding: 20,
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
     backgroundColor: '#fff',
-    marginHorizontal: 20,
-    borderRadius: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    marginBottom: 20,
+    borderRadius: 10,
+    marginTop: 10,
   },
   totalText: {
     fontSize: 18,
     fontWeight: '700',
     color: '#333',
-    marginBottom: 10,
   },
-  checkoutButton: {
+  totalAmount: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#e63946',
+  },
+  payButton: {
     backgroundColor: '#ff5722',
     borderRadius: 25,
     paddingVertical: 12,
     alignItems: 'center',
+    marginHorizontal: 20,
+    marginTop: 20,
   },
-  checkoutText: {
+  payText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  webview: {
+    height: 400,
+    width: '100%',
+    marginTop: 20,
   },
   bottomNav: {
     flexDirection: 'row',

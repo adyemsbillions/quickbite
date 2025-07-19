@@ -1,27 +1,25 @@
-
-   {
-     "expo": {
-       "name": "QuickBite",
-       "slug": "quickbite",
-       "scheme": "quickbite",
-       "version": "1.0.0",
-       "orientation": "portrait",
-       "icon": "./assets/images/icon.png",
-       "splash": {
-         "image": "./assets/background.jpg",
-         "resizeMode": "cover",
-         "backgroundColor": "#000000"
-       },
-       "assetBundlePatterns": ["**/*"],
-       "ios": {
-         "supportsTablet": true
-       },
-       "android": {
-         "adaptiveIcon": {
-           "foregroundImage": "./assets/images/adaptive-icon.png",
-           "backgroundColor": "#ffffff"
-         }
-       }
-     }
-   }
-  
+{
+  "expo": {
+    "name": "QuickBite",
+    "slug": "quickbite",
+    "scheme": "quickbite",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "splash": {
+      "image": "./assets/background.jpg",
+      "resizeMode": "cover",
+      "backgroundColor": "#000000"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    }
+  }
+}
