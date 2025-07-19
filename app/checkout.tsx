@@ -78,10 +78,34 @@ export default function Checkout() {
     fetchData();
   }, []);
 
-  const handlePayment = () => {
-    const paystackUrl = `https://checkout.paystack.com/v3/pay/${Math.round(parseFloat(total.replace('₦', '') || '0') * 100)}?key=pk_test_b689ff5efbeea84350ad6ba688f3389fb548b9b3&email=user@example.com&reference=TXN_${new Date().getTime()}¤cy=NGN`;
-    console.log('Loading Paystack URL:', paystackUrl);
-    webviewRef.current?.loadUrl(paystackUrl);
+  const handlePayment = async () => {
+    const payload = {
+      deliveryAddress,
+      phoneNumber,
+      userLocation,
+      cartItems,
+      total,
+    };
+
+    try {
+      const response = await fetch('http://192.168.231.38/quickbite/api/process_checkout.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+      if (result.status === 'success' && result.authorization_url) {
+        // Redirect to Paystack authorization URL
+        webviewRef.current?.loadUrl(result.authorization_url);
+      } else {
+        console.error('Payment initialization failed:', result.error);
+        alert('Payment initialization failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error during payment initiation:', error);
+      alert('An error occurred. Please try again.');
+    }
   };
 
   const onNavigationStateChange = (navState) => {
@@ -176,7 +200,7 @@ export default function Checkout() {
           ref={webviewRef}
           style={styles.webview}
           source={{ uri: 'about:blank' }} // Initial blank page
-          onNavigationStateChange={onNavigationStateChange}
+          onNavigationStateChange={onNavigationStateChange} // Corrected prop name
           javaScriptEnabled={true}
           domStorageEnabled={true}
           startInLoadingState={true}
@@ -345,7 +369,7 @@ const styles = StyleSheet.create({
   },
   webview: {
     height: 400,
-    width: '100%',
+    width: '100',
     marginTop: 20,
   },
   bottomNav: {
