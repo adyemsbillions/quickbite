@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
-// Placeholder images (fallbacks if API fails to provide URLs)
+// Placeholder images
 const PLACEHOLDER_AVATAR = require('../assets/images/avatar.jpg');
 const PLACEHOLDER_CATEGORY = require('../assets/images/burger_category.jpg');
 const PLACEHOLDER_RECIPE = require('../assets/images/promo_burger.png');
@@ -63,6 +63,7 @@ export default function Dashboard() {
         });
         const categoriesResult = await categoriesResponse.json();
         if (categoriesResult.success) {
+          console.log('Fetched Categories:', categoriesResult.data); // Debug log
           setCategories(categoriesResult.data || []);
         } else {
           console.error('Failed to fetch categories:', categoriesResult.message);
@@ -76,6 +77,7 @@ export default function Dashboard() {
         });
         const recipesResult = await recipesResponse.json();
         if (recipesResult.success) {
+          console.log('Fetched Recipes:', recipesResult.data); // Debug log
           setPopularRecipes(recipesResult.data || []);
         } else {
           console.error('Failed to fetch recipes:', recipesResult.message);
@@ -126,7 +128,7 @@ export default function Dashboard() {
           </View>
         </View>
 
-        {/* Promotional Banner (using a placeholder or dynamic image if available) */}
+        {/* Promotional Banner */}
         <View style={styles.promoBanner}>
           <View style={styles.promoTextContainer}>
             <Text style={styles.promoTitle}>Fast Bites,{"\n"}Faster Orders.</Text>
@@ -135,7 +137,6 @@ export default function Dashboard() {
               <Text style={styles.orderNowButtonText}>Order Now</Text>
             </TouchableOpacity>
           </View>
-          {/* Fallback to a placeholder since PLACEHOLDER_PROMO_BURGER is missing */}
           <Image source={PLACEHOLDER_RECIPE} style={styles.promoBurgerImage} />
         </View>
 
@@ -151,8 +152,13 @@ export default function Dashboard() {
             <TouchableOpacity key={index} style={styles.categoryItem}>
               <View style={styles.categoryImageWrapper}>
                 <Image
-                  source={category.image_url ? { uri: `http://192.168.231.38/quickbite/api/uploads/${category.image_url}` } : PLACEHOLDER_CATEGORY}
+                  source={
+                    category.image_url
+                      ? { uri: `http://192.168.231.38/quickbite/api/${category.image_url}` }
+                      : PLACEHOLDER_CATEGORY
+                  }
                   style={styles.categoryImage}
+                  onError={(e) => console.log(`Image load error for ${category.image_url}:`, e.nativeEvent.error)}
                 />
               </View>
               <Text style={styles.categoryName}>{category.name}</Text>
@@ -171,8 +177,13 @@ export default function Dashboard() {
           {popularRecipes.map((recipe) => (
             <TouchableOpacity key={recipe.id} style={styles.recipeCard}>
               <Image
-                source={recipe.image_url ? { uri: `http://192.168.231.38/quickbite/api/uploads/${recipe.image_url}` } : PLACEHOLDER_RECIPE}
+                source={
+                  recipe.image_url
+                    ? { uri: `http://192.168.231.38/quickbite/api/${recipe.image_url}` }
+                    : PLACEHOLDER_RECIPE
+                }
                 style={styles.recipeImage}
+                onError={(e) => console.log(`Image load error for ${recipe.image_url}:`, e.nativeEvent.error)}
               />
               <TouchableOpacity style={styles.heartIcon}>
                 <Feather name="heart" size={18} color="#ff5722" />
