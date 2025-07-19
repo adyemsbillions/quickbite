@@ -1,11 +1,11 @@
 import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Dimensions,
   Image,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -13,27 +13,78 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+interface CartItem {
+  id: string;
+  name: string;
+  price: string;
+  image_url: string;
+}
+
 const { width } = Dimensions.get('window');
 
 // Placeholder images
 const PLACEHOLDER_AVATAR = require('../assets/images/avatar.jpg');
 const PLACEHOLDER_RECIPE_CHICKEN = require('../assets/images/recipe_chicken.jpg');
-const PLACEHOLDER_RECIPE_BURGER = require('../assets/images/recipe_burger.jpg');
-
-const cartItems = [
-  { id: '1', name: 'Golden Spicy Chicken', price: '$70.00', image: PLACEHOLDER_RECIPE_CHICKEN },
-  { id: '2', name: 'Cheese Burger Nagi', price: '$60.00', image: PLACEHOLDER_RECIPE_BURGER },
-];
 
 export default function Cart() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const total = cartItems.reduce((sum, item) => sum + parseFloat(item.price.replace('$', '')), 0).toFixed(2);
+  const [name, setName] = useState<string>('');
+  const [location, setLocation] = useState<string>('');
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch user data
+        const id = await AsyncStorage.getItem('id');
+        if (id) {
+          const userResponse = await fetch(`http://192.168.231.38/quickbite/api/get_user.php?id=${id}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          });
+          const userResult = await userResponse.json();
+          if (userResult.success) {
+            const user = userResult.data;
+            setName(user.name || '');
+            setLocation(user.location || '');
+          } else {
+            console.error('Failed to fetch user data:', userResult.message);
+          }
+        } else {
+          console.warn('No user ID found. Defaulting to empty name and location.');
+        }
+
+        // Fetch cart data
+        const cart = await AsyncStorage.getItem('cart');
+        if (cart) {
+          setCartItems(JSON.parse(cart));
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const removeItem = async (id: string) => {
+    try {
+      const updatedCart = cartItems.filter((item) => item.id !== id);
+      setCartItems(updatedCart);
+      await AsyncStorage.setItem('cart', JSON.stringify(updatedCart));
+    } catch (error) {
+      console.error('Error removing item:', error);
+    }
+  };
+
+  const total = cartItems
+    .reduce((sum, item) => sum + parseFloat(item.price.replace('₦', '') || '0'), 0)
+    .toFixed(2);
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f8f8f8" />
+      <View style={[styles.statusBarPlaceholder, { backgroundColor: '#f8f8f8' }]} />
       <ScrollView
         style={styles.scrollViewContent}
         contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
@@ -44,10 +95,10 @@ export default function Cart() {
           <View style={styles.userInfo}>
             <Image source={PLACEHOLDER_AVATAR} style={styles.avatar} />
             <View>
-              <Text style={styles.greeting}>Hello Jenny</Text>
+              <Text style={styles.greeting}>Hello {name || 'User'}</Text>
               <View style={styles.location}>
                 <Feather name="map-pin" size={16} color="#4ade80" />
-                <Text style={styles.locationText}>N.Y Bronx</Text>
+                <Text style={styles.locationText}>{location || 'N.Y Bronx'}</Text>
               </View>
             </View>
           </View>
@@ -60,31 +111,45 @@ export default function Cart() {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>My Cart</Text>
         </View>
-        {cartItems.map((item) => (
-          <View key={item.id} style={styles.cartItem}>
-            <Image source={item.image} style={styles.cartImage} />
-            <View style={styles.cartInfo}>
-              <Text style={styles.cartName}>{item.name}</Text>
-              <Text style={styles.cartPrice}>{item.price}</Text>
+        {cartItems.length === 0 ? (
+          <Text style={styles.emptyCartText}>Your cart is empty.</Text>
+        ) : (
+          cartItems.map((item) => (
+            <View key={item.id} style={styles.cartItem}>
+              <Image
+                source={
+                  item.image_url
+                    ? { uri: `http://192.168.231.38/quickbite/api/uploads/${item.image_url}` }
+                    : PLACEHOLDER_RECIPE_CHICKEN
+                }
+                style={styles.cartImage}
+                onError={(e) => console.log(`Image load error for ${item.image_url}:`, e.nativeEvent.error)}
+              />
+              <View style={styles.cartInfo}>
+                <Text style={styles.cartName}>{item.name}</Text>
+                <Text style={styles.cartPrice}>{`₦${item.price}`}</Text>
+              </View>
+              <TouchableOpacity style={styles.removeButton} onPress={() => removeItem(item.id)}>
+                <Feather name="trash-2" size={20} color="#ff5722" />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.removeButton}>
-              <Feather name="trash-2" size={20} color="#ff5722" />
-            </TouchableOpacity>
-          </View>
-        ))}
+          ))
+        )}
 
         {/* Total and Checkout */}
-        <View style={styles.totalSection}>
-          <Text style={styles.totalText}>Total: ${total}</Text>
-          <TouchableOpacity style={styles.checkoutButton}>
-            <Text style={styles.checkoutText}>Checkout</Text>
-          </TouchableOpacity>
-        </View>
+        {cartItems.length > 0 && (
+          <View style={styles.totalSection}>
+            <Text style={styles.totalText}>Total: ₦{total}</Text>
+            <TouchableOpacity style={styles.checkoutButton} onPress={() => router.push('/checkout')}>
+              <Text style={styles.checkoutText}>Checkout</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
 
       {/* Bottom Navigation */}
       <View style={[styles.bottomNav, { paddingBottom: insets.bottom }]}>
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/restaurant')}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/')}>
           <Feather name="home" size={24} color="#999" />
           <Text style={styles.navText}>Home</Text>
         </TouchableOpacity>
@@ -109,6 +174,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f8f8',
+  },
+  statusBarPlaceholder: {
+    height: 0, // Removed dependency on StatusBar.currentHeight to avoid errors
   },
   scrollViewContent: {
     flex: 1,
@@ -212,6 +280,12 @@ const styles = StyleSheet.create({
   },
   removeButton: {
     padding: 5,
+  },
+  emptyCartText: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#666',
+    padding: 20,
   },
   totalSection: {
     padding: 20,

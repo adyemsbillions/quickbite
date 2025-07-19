@@ -6,7 +6,6 @@ import {
   Dimensions,
   Image,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -92,7 +91,7 @@ export default function Dashboard() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <View style={[styles.statusBarPlaceholder, { height: insets.top, backgroundColor: '#ffffff' }]} />
       <ScrollView
         style={styles.scrollViewContent}
         contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
@@ -131,7 +130,9 @@ export default function Dashboard() {
         {/* Promotional Banner */}
         <View style={styles.promoBanner}>
           <View style={styles.promoTextContainer}>
-            <Text style={styles.promoTitle}>Fast Bites,{"\n"}Faster Orders.</Text>
+            <Text style={styles.promoTitle}>
+              Fast Bites<Text>{"\n"}</Text>Faster Orders.
+            </Text>
             <Text style={styles.promoSubtitle}>Up to 3 times per day</Text>
             <TouchableOpacity style={styles.orderNowButton}>
               <Text style={styles.orderNowButtonText}>Order Now</Text>
@@ -175,7 +176,16 @@ export default function Dashboard() {
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recipesScroll}>
           {popularRecipes.map((recipe) => (
-            <TouchableOpacity key={recipe.id} style={styles.recipeCard}>
+            <TouchableOpacity
+              key={recipe.id}
+              style={styles.recipeCard}
+              onPress={() =>
+                router.push({
+                  pathname: '/recipe-details',
+                  params: { id: recipe.id, name: recipe.name, description: recipe.description, price: recipe.price, image_url: recipe.image_url },
+                })
+              }
+            >
               <Image
                 source={
                   recipe.image_url
@@ -230,6 +240,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
+  },
+  statusBarPlaceholder: {
+    backgroundColor: '#ffffff', // Static background color
   },
   scrollViewContent: {
     flex: 1,
