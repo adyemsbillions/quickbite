@@ -82,7 +82,7 @@ export default function LoginScreen() {
         await AsyncStorage.setItem('id', data.user.id.toString());
         console.log('Stored ID:', data.user.id); // Debug log
         Alert.alert('Success', data.message || 'Logged in successfully');
-        router.push('/profile'); // Navigate to profile instead of restaurant
+        router.push('/restaurant'); // Navigate to profile instead of restaurant
       } else {
         Alert.alert('Error', data.error || 'Login failed');
       }

@@ -1,6 +1,7 @@
 import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Dimensions,
   Image,
@@ -16,70 +17,94 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
-// Placeholder images (replace with your actual assets)
-const PLACEHOLDER_AVATAR = require('../assets/images/avatar.jpg'); // Create this or use a URL
-const PLACEHOLDER_BURGER_CATEGORY = require('../assets/images/burger_category.jpg'); // Create this or use a URL
-const PLACEHOLDER_PIZZA_CATEGORY = require('../assets/images/pizza_category.jpg'); // Create this or use a URL
-const PLACEHOLDER_SALAD_CATEGORY = require('../assets/images/salad_category.jpg'); // Create this or use a URL
-const PLACEHOLDER_CHICKEN_CATEGORY = require('../assets/images/chicken_category.jpg'); // Create this or use a URL
-const PLACEHOLDER_PROMO_BURGER = require('../assets/images/promo_burger.png'); // Create this or use a URL
-const PLACEHOLDER_RECIPE_CHICKEN = require('../assets/images/recipe_chicken.jpg'); // Create this or use a URL
-const PLACEHOLDER_RECIPE_BURGER = require('../assets/images/recipe_burger.jpg'); // Create this or use a URL
-
-// Sample Data
-const categories = [
-  { name: 'Burger', image: PLACEHOLDER_BURGER_CATEGORY },
-  { name: 'Pizza', image: PLACEHOLDER_PIZZA_CATEGORY },
-  { name: 'Salad', image: PLACEHOLDER_SALAD_CATEGORY },
-  { name: 'Chicken', image: PLACEHOLDER_CHICKEN_CATEGORY },
-  { name: 'Drinks', image: PLACEHOLDER_BURGER_CATEGORY }, // Example additional category
-];
-
-const popularRecipes = [
-  {
-    id: '1',
-    name: 'Golden Spicy Chicken',
-    description: 'Marinated with a blend of...',
-    price: '₦70.00',
-    image: PLACEHOLDER_RECIPE_CHICKEN,
-  },
-  {
-    id: '2',
-    name: 'Cheese Burger Nagi',
-    description: 'The Cheese Burger Nagi is...',
-    price: '₦60.00',
-    image: PLACEHOLDER_RECIPE_BURGER,
-  },
-  {
-    id: '3',
-    name: 'Veggie Delight Pizza',
-    description: 'Fresh vegetables and mozzarella...',
-    price: '₦55.00',
-    image: PLACEHOLDER_PIZZA_CATEGORY, // Reusing for example
-  },
-];
+// Placeholder images (fallbacks if API fails to provide URLs)
+const PLACEHOLDER_AVATAR = require('../assets/images/avatar.jpg');
+const PLACEHOLDER_CATEGORY = require('../assets/images/burger_category.jpg');
+const PLACEHOLDER_RECIPE = require('../assets/images/promo_burger.png');
 
 export default function Dashboard() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+
+  // State for user data
+  const [name, setName] = useState('');
+  const [location, setLocation] = useState('');
+  // State for dynamic data
+  const [categories, setCategories] = useState([]);
+  const [popularRecipes, setPopularRecipes] = useState([]);
+
+  // Fetch user data and dynamic content on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch user data
+        const id = await AsyncStorage.getItem('id');
+        if (id) {
+          const userResponse = await fetch(`http://192.168.231.38/quickbite/api/get_user.php?id=${id}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          });
+          const userResult = await userResponse.json();
+          if (userResult.success) {
+            const user = userResult.data;
+            setName(user.name || '');
+            setLocation(user.location || '');
+          } else {
+            console.error('Failed to fetch user data:', userResult.message);
+          }
+        } else {
+          console.warn('No user ID found. Defaulting to empty name and location.');
+        }
+
+        // Fetch categories
+        const categoriesResponse = await fetch('http://192.168.231.38/quickbite/api/get_categories.php', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        const categoriesResult = await categoriesResponse.json();
+        if (categoriesResult.success) {
+          setCategories(categoriesResult.data || []);
+        } else {
+          console.error('Failed to fetch categories:', categoriesResult.message);
+          setCategories([]); // Fallback to empty array
+        }
+
+        // Fetch popular recipes
+        const recipesResponse = await fetch('http://192.168.231.38/quickbite/api/get_recipes.php', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        const recipesResult = await recipesResponse.json();
+        if (recipesResult.success) {
+          setPopularRecipes(recipesResult.data || []);
+        } else {
+          console.error('Failed to fetch recipes:', recipesResult.message);
+          setPopularRecipes([]); // Fallback to empty array
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+    fetchData();
+  }, []);
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       <ScrollView
         style={styles.scrollViewContent}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 80 }} // Add padding for bottom nav
+        contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header (now just user info with white background) */}
+        {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top, backgroundColor: '#ffffff' }]}>
           <View style={styles.userInfo}>
             <Image source={PLACEHOLDER_AVATAR} style={styles.avatar} />
             <View>
-              <Text style={styles.greeting}>Hello Jenny</Text>
+              <Text style={styles.greeting}>Hello {name || 'User'}</Text>
               <View style={styles.location}>
                 <Feather name="map-pin" size={16} color="#4ade80" />
-                <Text style={styles.locationText}>N.Y Bronx</Text>
+                <Text style={styles.locationText}>{location || 'N.Y Bronx'}</Text>
               </View>
             </View>
           </View>
@@ -101,7 +126,7 @@ export default function Dashboard() {
           </View>
         </View>
 
-        {/* Promotional Banner */}
+        {/* Promotional Banner (using a placeholder or dynamic image if available) */}
         <View style={styles.promoBanner}>
           <View style={styles.promoTextContainer}>
             <Text style={styles.promoTitle}>Fast Bites,{"\n"}Faster Orders.</Text>
@@ -110,7 +135,8 @@ export default function Dashboard() {
               <Text style={styles.orderNowButtonText}>Order Now</Text>
             </TouchableOpacity>
           </View>
-          <Image source={PLACEHOLDER_PROMO_BURGER} style={styles.promoBurgerImage} />
+          {/* Fallback to a placeholder since PLACEHOLDER_PROMO_BURGER is missing */}
+          <Image source={PLACEHOLDER_RECIPE} style={styles.promoBurgerImage} />
         </View>
 
         {/* Service Categories */}
@@ -124,7 +150,10 @@ export default function Dashboard() {
           {categories.map((category, index) => (
             <TouchableOpacity key={index} style={styles.categoryItem}>
               <View style={styles.categoryImageWrapper}>
-                <Image source={category.image} style={styles.categoryImage} />
+                <Image
+                  source={category.image_url ? { uri: `http://192.168.231.38/quickbite/api/uploads/${category.image_url}` } : PLACEHOLDER_CATEGORY}
+                  style={styles.categoryImage}
+                />
               </View>
               <Text style={styles.categoryName}>{category.name}</Text>
             </TouchableOpacity>
@@ -141,7 +170,10 @@ export default function Dashboard() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recipesScroll}>
           {popularRecipes.map((recipe) => (
             <TouchableOpacity key={recipe.id} style={styles.recipeCard}>
-              <Image source={recipe.image} style={styles.recipeImage} />
+              <Image
+                source={recipe.image_url ? { uri: `http://192.168.231.38/quickbite/api/uploads/${recipe.image_url}` } : PLACEHOLDER_RECIPE}
+                style={styles.recipeImage}
+              />
               <TouchableOpacity style={styles.heartIcon}>
                 <Feather name="heart" size={18} color="#ff5722" />
               </TouchableOpacity>
@@ -149,7 +181,7 @@ export default function Dashboard() {
                 <Text style={styles.recipeName}>{recipe.name}</Text>
                 <Text style={styles.recipeDescription}>{recipe.description}</Text>
                 <View style={styles.recipeFooter}>
-                  <Text style={styles.recipePrice}>{recipe.price}</Text>
+                  <Text style={styles.recipePrice}>{`₦${recipe.price || '0.00'}`}</Text>
                   <TouchableOpacity style={styles.addIcon}>
                     <Feather name="plus" size={16} color="#fff" />
                   </TouchableOpacity>
@@ -186,7 +218,7 @@ export default function Dashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff', // Ensure entire screen starts white
+    backgroundColor: '#ffffff',
   },
   scrollViewContent: {
     flex: 1,
@@ -197,7 +229,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingBottom: 15,
-    backgroundColor: '#ffffff', // White background to match your request
+    backgroundColor: '#ffffff',
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     shadowColor: '#000',
@@ -242,7 +274,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
   searchSection: {
     paddingHorizontal: 20,
     paddingVertical: 20,
@@ -275,7 +306,6 @@ const styles = StyleSheet.create({
   searchIcon: {
     marginLeft: 10,
   },
-
   promoBanner: {
     backgroundColor: '#ff5722',
     marginHorizontal: 20,
@@ -329,7 +359,6 @@ const styles = StyleSheet.create({
     right: -20,
     bottom: -10,
   },
-
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -348,7 +377,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-
   categoriesScroll: {
     paddingLeft: 20,
     marginBottom: 30,
@@ -382,7 +410,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
   },
-
   recipesScroll: {
     paddingLeft: 20,
     marginBottom: 20,
@@ -390,7 +417,7 @@ const styles = StyleSheet.create({
   recipeCard: {
     backgroundColor: '#fff',
     borderRadius: 20,
-    width: width * 0.6, // Adjust width as needed
+    width: width * 0.6,
     marginRight: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -435,12 +462,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 5, // Added margin to separate from description
+    marginTop: 5,
   },
   recipePrice: {
     fontSize: 18,
-    fontWeight: '900', // Increased to extra bold
-    color: '#e63946', // Bold red for better visibility
+    fontWeight: '900',
+    color: '#e63946',
   },
   addIcon: {
     backgroundColor: '#ff5722',
@@ -450,7 +477,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
   bottomNav: {
     flexDirection: 'row',
     justifyContent: 'space-around',
