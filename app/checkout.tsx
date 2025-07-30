@@ -20,6 +20,7 @@ interface CartItem {
   name: string;
   price: string;
   image_url: string;
+  quantity: number; // Added quantity field
 }
 
 const { width } = Dimensions.get('window');
@@ -38,8 +39,9 @@ export default function Checkout() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [deliveryAddress, setDeliveryAddress] = useState<string>('');
   const [phoneNumber, setPhoneNumber] = useState<string>('');
-  const [userLocation, setUserLocation] = useState<string>(''); // Manual location input
+  const [userLocation, setUserLocation] = useState<string>('');
   const [total, setTotal] = useState<string>('0.00');
+  const [showWebView, setShowWebView] = useState<boolean>(false); // Control WebView visibility
 
   useEffect(() => {
     const fetchData = async () => {
@@ -47,7 +49,7 @@ export default function Checkout() {
         // Fetch user data
         const id = await AsyncStorage.getItem('id');
         if (id) {
-          const userResponse = await fetch(`https://quickbite.truszedproperties.com/quickbite.truszedproperties.com/quickbite/api/get_user.php?id=${id}`, {
+          const userResponse = await fetch(`https://quickbite.truszedproperties.com/quickbite/api/get_user.php?id=${id}`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
           });
@@ -56,9 +58,13 @@ export default function Checkout() {
             const user = userResult.data;
             setName(user.name || '');
             setLocation(user.location || '');
+            setDeliveryAddress(user.location || ''); // Pre-fill delivery address
+            setUserLocation(user.location || ''); // Pre-fill user location
           } else {
             console.error('Failed to fetch user data:', userResult.message);
           }
+        } else {
+          console.warn('No user ID found. Defaulting to empty name and location.');
         }
 
         // Fetch cart data
@@ -67,7 +73,7 @@ export default function Checkout() {
           const items = JSON.parse(cart);
           setCartItems(items);
           const calculatedTotal = items
-            .reduce((sum, item) => sum + parseFloat(item.price.replace('₦', '') || '0'), 0)
+            .reduce((sum, item) => sum + parseFloat(item.price.replace('₦', '') || '0') * item.quantity, 0)
             .toFixed(2);
           setTotal(calculatedTotal);
         }
@@ -79,6 +85,11 @@ export default function Checkout() {
   }, []);
 
   const handlePayment = async () => {
+    if (!deliveryAddress || !phoneNumber || !userLocation) {
+      alert('Please fill in all delivery information fields.');
+      return;
+    }
+
     const payload = {
       deliveryAddress,
       phoneNumber,
@@ -96,8 +107,9 @@ export default function Checkout() {
 
       const result = await response.json();
       if (result.status === 'success' && result.authorization_url) {
-        // Redirect to Paystack authorization URL
-        webviewRef.current?.loadUrl(result.authorization_url);
+        setShowWebView(true); // Show WebView
+        webviewRef.current?.reload(); // Ensure WebView is fresh
+        webviewRef.current?.injectJavaScript(`window.location.href = "${result.authorization_url}";`); // Navigate to Paystack URL
       } else {
         console.error('Payment initialization failed:', result.error);
         alert('Payment initialization failed. Please try again.');
@@ -108,13 +120,24 @@ export default function Checkout() {
     }
   };
 
-  const onNavigationStateChange = (navState) => {
+  const onNavigationStateChange = (navState: { url: string }) => {
     console.log('Navigation state changed:', navState.url);
     if (navState.url.includes('success')) {
       console.log('Payment successful');
-      router.push('/');
+      // Clear cart after successful payment
+      AsyncStorage.removeItem('cart').then(() => {
+        setCartItems([]);
+        setTotal('0.00');
+        setShowWebView(false);
+        alert('Payment successful! Your order has been placed.');
+        router.push('/');
+      }).catch((error) => {
+        console.error('Error clearing cart:', error);
+      });
     } else if (navState.url.includes('cancel')) {
       console.log('Payment cancelled');
+      setShowWebView(false);
+      alert('Payment cancelled.');
     }
   };
 
@@ -178,8 +201,12 @@ export default function Checkout() {
         ) : (
           cartItems.map((item) => (
             <View key={item.id} style={styles.summaryItem}>
-              <Text style={styles.summaryName}>{item.name}</Text>
-              <Text style={styles.summaryPrice}>{`₦${item.price}`}</Text>
+              <Text style={styles.summaryName}>
+                {item.name} (x{item.quantity})
+              </Text>
+              <Text style={styles.summaryPrice}>
+                ₦{(parseFloat(item.price.replace('₦', '') || '0') * item.quantity).toFixed(2)}
+              </Text>
             </View>
           ))
         )}
@@ -194,18 +221,28 @@ export default function Checkout() {
             <Text style={styles.payText}>Pay Now</Text>
           </TouchableOpacity>
         )}
-
-        {/* WebView for Payment */}
-        <WebView
-          ref={webviewRef}
-          style={styles.webview}
-          source={{ uri: 'about:blank' }} // Initial blank page
-          onNavigationStateChange={onNavigationStateChange} // Corrected prop name
-          javaScriptEnabled={true}
-          domStorageEnabled={true}
-          startInLoadingState={true}
-        />
       </ScrollView>
+
+      {/* WebView for Payment */}
+      {showWebView && (
+        <View style={styles.webviewContainer}>
+          <WebView
+            ref={webviewRef}
+            style={styles.webview}
+            source={{ uri: 'about:blank' }}
+            onNavigationStateChange={onNavigationStateChange}
+            javaScriptEnabled={true}
+            domStorageEnabled={true}
+            startInLoadingState={true}
+          />
+          <TouchableOpacity
+            style={styles.closeWebViewButton}
+            onPress={() => setShowWebView(false)}
+          >
+            <Text style={styles.closeWebViewText}>Close Payment</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Bottom Navigation */}
       <View style={[styles.bottomNav, { paddingBottom: insets.bottom }]}>
@@ -367,10 +404,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  webviewContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#fff',
+  },
   webview: {
-    height: 400,
-    width: '100',
-    marginTop: 20,
+    flex: 1,
+    width: '100%',
+  },
+  closeWebViewButton: {
+    backgroundColor: '#ff5722',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    margin: 20,
+  },
+  closeWebViewText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   bottomNav: {
     flexDirection: 'row',
