@@ -3,14 +3,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    Dimensions,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -47,7 +47,7 @@ export default function Checkout() {
         // Fetch user data
         const id = await AsyncStorage.getItem('id');
         if (id) {
-          const userResponse = await fetch(`http://192.168.231.38/quickbite/api/get_user.php?id=${id}`, {
+          const userResponse = await fetch(`https://quickbite.truszedproperties.com/quickbite.truszedproperties.com/quickbite/api/get_user.php?id=${id}`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
           });
@@ -88,7 +88,7 @@ export default function Checkout() {
     };
 
     try {
-      const response = await fetch('http://192.168.231.38/quickbite/api/process_checkout.php', {
+      const response = await fetch('https://quickbite.truszedproperties.com/quickbite/api/process_checkout.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

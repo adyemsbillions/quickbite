@@ -3,14 +3,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import {
-    Animated,
-    Dimensions,
-    ImageBackground,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Animated,
+  Dimensions,
+  ImageBackground,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -66,7 +66,7 @@ export default function HomeScreen() {
             {/* Floating Title */}
             <View style={styles.titleSection}>
               {/* <Text style={styles.fastText}>Quick</Text> */}
-              <Text style={styles.foodText}>QUICK-BITE</Text>
+              <Text style={styles.foodText}>cravi</Text>
               <View style={styles.underline} />
             </View>
 

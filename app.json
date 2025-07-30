@@ -1,25 +1,38 @@
 {
   "expo": {
-    "name": "QuickBite",
-    "slug": "quickbite",
-    "scheme": "quickbite",
+    "name": "cravi",
+    "slug": "carvi",
+    "scheme": "cravi",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/logo.png",
     "splash": {
-      "image": "./assets/background.jpg",
+      "image": "./assets/logo.png",
       "resizeMode": "cover",
       "backgroundColor": "#000000"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+      "adaptiveIcon": { 
+        "foregroundImage": "./assets/images/logo.png",
         "backgroundColor": "#ffffff"
+      },
+      "package": "com.adyemsbillions.quickbite",
+      "versionCode": 1
+    },
+    "extra": {
+      "eas": {
+        "projectId": "208ab134-79af-456a-9178-4e4da5a3fb8e"
       }
-    }
+    },
+    "owner": "adyemsbillions",
+    "plugins": [
+      "expo-router"
+    ]
   }
 }

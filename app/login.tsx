@@ -57,7 +57,7 @@ export default function LoginScreen() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://192.168.231.38/quickbite/api/login.php', {
+      const response = await fetch('https://quickbite.truszedproperties.com/quickbite/api/login.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

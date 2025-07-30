@@ -4,13 +4,13 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import {
-    Dimensions,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -41,7 +41,7 @@ export default function RecipeDetails() {
   useEffect(() => {
     const fetchRecipeDetails = async () => {
       try {
-        const response = await fetch(`http://192.168.231.38/quickbite/api/get_recipe.php?id=${id}`, {
+        const response = await fetch(`https://quickbite.truszedproperties.com/quickbite/api/get_recipe.php?id=${id}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -84,7 +84,7 @@ export default function RecipeDetails() {
         <Image
           source={
             recipe?.image_url
-              ? { uri: `http://192.168.231.38/quickbite/api/uploads/${recipe.image_url}` } // Adjusted URL
+              ? { uri: `https://quickbite.truszedproperties.com/quickbite/api/uploads/${recipe.image_url}` } // Adjusted URL
               : PLACEHOLDER_RECIPE
           }
           style={styles.detailImage}

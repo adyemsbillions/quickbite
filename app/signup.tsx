@@ -71,7 +71,7 @@ export default function SignUpScreen() {
     setIsLoading(true);
 
     try {
-   const response = await fetch('http://192.168.231.38/quickbite/api/signup.php', {
+   const response = await fetch('https://quickbite.truszedproperties.com/quickbite/api/signup.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -138,7 +138,7 @@ export default function SignUpScreen() {
                 ]}
               >
                 <View style={styles.signupCard}>
-                  <Text style={styles.cardTitle}>Join QuickBite!</Text>
+                  <Text style={styles.cardTitle}>Join Cravi!</Text>
                   <Text style={styles.cardSubtitle}>Create your account</Text>
 
                   <View style={styles.inputGroup}>

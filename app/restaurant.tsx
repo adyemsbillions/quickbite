@@ -39,7 +39,7 @@ export default function Dashboard() {
         // Fetch user data
         const id = await AsyncStorage.getItem('id');
         if (id) {
-          const userResponse = await fetch(`http://192.168.231.38/quickbite/api/get_user.php?id=${id}`, {
+          const userResponse = await fetch(`https://quickbite.truszedproperties.com/quickbite/api/get_user.php?id=${id}`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
           });
@@ -56,7 +56,7 @@ export default function Dashboard() {
         }
 
         // Fetch categories
-        const categoriesResponse = await fetch('http://192.168.231.38/quickbite/api/get_categories.php', {
+        const categoriesResponse = await fetch('https://quickbite.truszedproperties.com/quickbite/api/get_categories.php', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -70,7 +70,7 @@ export default function Dashboard() {
         }
 
         // Fetch popular recipes
-        const recipesResponse = await fetch('http://192.168.231.38/quickbite/api/get_recipes.php', {
+        const recipesResponse = await fetch('https://quickbite.truszedproperties.com/quickbite/api/get_recipes.php', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -155,7 +155,7 @@ export default function Dashboard() {
                 <Image
                   source={
                     category.image_url
-                      ? { uri: `http://192.168.231.38/quickbite/api/${category.image_url}` }
+                      ? { uri: `https://quickbite.truszedproperties.com/quickbite/api/${category.image_url}` }
                       : PLACEHOLDER_CATEGORY
                   }
                   style={styles.categoryImage}
@@ -189,7 +189,7 @@ export default function Dashboard() {
               <Image
                 source={
                   recipe.image_url
-                    ? { uri: `http://192.168.231.38/quickbite/api/${recipe.image_url}` }
+                    ? { uri: `https://quickbite.truszedproperties.com/quickbite/api/${recipe.image_url}` }
                     : PLACEHOLDER_RECIPE
                 }
                 style={styles.recipeImage}

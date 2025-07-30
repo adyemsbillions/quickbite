@@ -40,7 +40,7 @@ export default function Cart() {
         // Fetch user data
         const id = await AsyncStorage.getItem('id');
         if (id) {
-          const userResponse = await fetch(`http://192.168.231.38/quickbite/api/get_user.php?id=${id}`, {
+          const userResponse = await fetch(`https://quickbite.truszedproperties.com/quickbite/api/get_user.php?id=${id}`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
           });
@@ -119,7 +119,7 @@ export default function Cart() {
               <Image
                 source={
                   item.image_url
-                    ? { uri: `http://192.168.231.38/quickbite/api/${item.image_url}` }
+                    ? { uri: `https://quickbite.truszedproperties.com/quickbite/api/${item.image_url}` }
                     : PLACEHOLDER_RECIPE_CHICKEN
                 }
                 style={styles.cartImage}
