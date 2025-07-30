@@ -18,6 +18,7 @@ interface CartItem {
   name: string;
   price: string;
   image_url: string;
+  quantity: number;
 }
 
 const { width } = Dimensions.get('window');
@@ -46,7 +47,7 @@ export default function Cart() {
           });
           const userResult = await userResponse.json();
           if (userResult.success) {
-            const user = userResult.data;
+            const user = userResult.data; // Fixed typo: vydyResult -> userResult
             setName(user.name || '');
             setLocation(user.location || '');
           } else {
@@ -68,6 +69,20 @@ export default function Cart() {
     fetchData();
   }, []);
 
+  const updateQuantity = async (id: string, change: number) => {
+    try {
+      const updatedCart = cartItems.map((item) =>
+        item.id === id
+          ? { ...item, quantity: Math.max(1, item.quantity + change) }
+          : item
+      );
+      setCartItems(updatedCart);
+      await AsyncStorage.setItem('cart', JSON.stringify(updatedCart));
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+    }
+  };
+
   const removeItem = async (id: string) => {
     try {
       const updatedCart = cartItems.filter((item) => item.id !== id);
@@ -79,7 +94,7 @@ export default function Cart() {
   };
 
   const total = cartItems
-    .reduce((sum, item) => sum + parseFloat(item.price.replace('₦', '') || '0'), 0)
+    .reduce((sum, item) => sum + parseFloat(item.price.replace('₦', '') || '0') * item.quantity, 0)
     .toFixed(2);
 
   return (
@@ -128,6 +143,21 @@ export default function Cart() {
               <View style={styles.cartInfo}>
                 <Text style={styles.cartName}>{item.name}</Text>
                 <Text style={styles.cartPrice}>{`₦${item.price}`}</Text>
+                <View style={styles.quantityContainer}>
+                  <TouchableOpacity
+                    style={styles.quantityButton}
+                    onPress={() => updateQuantity(item.id, -1)}
+                  >
+                    <Text style={styles.quantityButtonText}>–</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.quantityText}>{item.quantity}</Text>
+                  <TouchableOpacity
+                    style={styles.quantityButton}
+                    onPress={() => updateQuantity(item.id, 1)}
+                  >
+                    <Text style={styles.quantityButtonText}>+</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
               <TouchableOpacity style={styles.removeButton} onPress={() => removeItem(item.id)}>
                 <Feather name="trash-2" size={20} color="#ff5722" />
@@ -176,7 +206,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f8f8',
   },
   statusBarPlaceholder: {
-    height: 0, // Removed dependency on StatusBar.currentHeight to avoid errors
+    height: 0,
   },
   scrollViewContent: {
     flex: 1,
@@ -277,6 +307,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#4ade80',
     marginTop: 5,
+  },
+  quantityContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  quantityButton: {
+    backgroundColor: '#f0f0f0',
+    borderRadius: 5,
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 5,
+  },
+  quantityButtonText: {
+    fontSize: 20,
+    color: '#333',
+    fontWeight: '600',
+  },
+  quantityText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '600',
+    minWidth: 30,
+    textAlign: 'center',
   },
   removeButton: {
     padding: 5,
