@@ -29,6 +29,22 @@ export default function LoginScreen() {
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
   useEffect(() => {
+    // Check for existing session
+    const checkSession = async () => {
+      try {
+        const userId = await AsyncStorage.getItem('id');
+        if (userId) {
+          console.log('Session found, redirecting to restaurant:', userId);
+          router.replace('/restaurant'); // Use replace to avoid adding to navigation stack
+        }
+      } catch (error) {
+        console.error('Error checking session:', error);
+      }
+    };
+
+    checkSession();
+
+    // Start animations
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -80,9 +96,9 @@ export default function LoginScreen() {
       if (response.ok) {
         // Store the user ID in AsyncStorage
         await AsyncStorage.setItem('id', data.user.id.toString());
-        console.log('Stored ID:', data.user.id); // Debug log
+        console.log('Stored ID:', data.user.id);
         Alert.alert('Success', data.message || 'Logged in successfully');
-        router.push('/restaurant'); // Navigate to profile instead of restaurant
+        router.replace('/restaurant'); // Use replace to avoid adding to navigation stack
       } else {
         Alert.alert('Error', data.error || 'Login failed');
       }
@@ -95,6 +111,19 @@ export default function LoginScreen() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Logout function to clear session
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem('id');
+      console.log('Session cleared');
+      Alert.alert('Success', 'Logged out successfully');
+      router.replace('/login'); // Redirect to login screen
+    } catch (error) {
+      console.error('Error clearing session:', error);
+      Alert.alert('Error', 'Failed to log out');
     }
   };
 
