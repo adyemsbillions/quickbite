@@ -43,11 +43,11 @@ export default function Checkout() {
   const [userLocation, setUserLocation] = useState<string>('');
   const [total, setTotal] = useState<string>('0.00');
   const [showWebView, setShowWebView] = useState<boolean>(false);
+  const [paymentUrl, setPaymentUrl] = useState<string>('');
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch user data
         const id = await AsyncStorage.getItem('id');
         console.log('Retrieved ID from AsyncStorage:', id);
         if (id) {
@@ -73,7 +73,6 @@ export default function Checkout() {
           router.replace('/login');
         }
 
-        // Fetch cart data
         const cart = await AsyncStorage.getItem('cart');
         if (cart) {
           const items = JSON.parse(cart);
@@ -127,9 +126,8 @@ export default function Checkout() {
       }
 
       if (result.status === 'success' && result.authorization_url) {
+        setPaymentUrl(result.authorization_url);
         setShowWebView(true);
-        webviewRef.current?.reload();
-        webviewRef.current?.injectJavaScript(`window.location.href = "${result.authorization_url}";`);
       } else {
         console.error('Payment initialization failed:', result.error);
         alert(`Payment initialization failed: ${result.error || 'Please try again.'}`);
@@ -140,14 +138,15 @@ export default function Checkout() {
     }
   };
 
-  const onNavigationStateChange = (navState: { url: string }) => {
-    console.log('Navigation state changed:', navState.url);
+  const onNavigationStateChange = (navState: { url: string; loading: boolean }) => {
+    console.log('Navigation state changed:', navState.url, 'Loading:', navState.loading);
     if (navState.url.includes('success')) {
       console.log('Payment successful');
       AsyncStorage.removeItem('cart').then(() => {
         setCartItems([]);
         setTotal('0.00');
         setShowWebView(false);
+        setPaymentUrl('');
         alert('Payment successful! Your order has been placed.');
         router.push('/');
       }).catch((error) => {
@@ -156,8 +155,17 @@ export default function Checkout() {
     } else if (navState.url.includes('cancel')) {
       console.log('Payment cancelled');
       setShowWebView(false);
+      setPaymentUrl('');
       alert('Payment cancelled.');
     }
+  };
+
+  const onWebViewError = (syntheticEvent: any) => {
+    const { nativeEvent } = syntheticEvent;
+    console.error('WebView error:', nativeEvent);
+    alert('Failed to load payment page. Please try again.');
+    setShowWebView(false);
+    setPaymentUrl('');
   };
 
   return (
@@ -239,15 +247,21 @@ export default function Checkout() {
           <WebView
             ref={webviewRef}
             style={styles.webview}
-            source={{ uri: 'about:blank' }}
+            source={{ uri: paymentUrl }}
             onNavigationStateChange={onNavigationStateChange}
+            onError={onWebViewError}
             javaScriptEnabled={true}
             domStorageEnabled={true}
             startInLoadingState={true}
+            cacheEnabled={false}
+            cacheMode="LOAD_NO_CACHE"
           />
           <TouchableOpacity
             style={styles.closeWebViewButton}
-            onPress={() => setShowWebView(false)}
+            onPress={() => {
+              setShowWebView(false);
+              setPaymentUrl('');
+            }}
           >
             <Text style={styles.closeWebViewText}>Close Payment</Text>
           </TouchableOpacity>
