@@ -77,6 +77,7 @@ export default function Checkout() {
         const cart = await AsyncStorage.getItem('cart');
         if (cart) {
           const items = JSON.parse(cart);
+          console.log('Cart Items from AsyncStorage:', JSON.stringify(items, null, 2));
           setCartItems(items);
           const calculatedTotal = items
             .reduce((sum, item) => {
@@ -103,8 +104,14 @@ export default function Checkout() {
     }
 
     // Check if all items are from the same restaurant
-    const restaurantIds = new Set(cartItems.map(item => item.restaurantId));
-    if (restaurantIds.size > 1) {
+    const restaurantIds = cartItems.map(item => item.restaurantId);
+    const restaurant_id = cartItems[0]?.restaurantId || '1';
+    console.log('Restaurant IDs from cartItems:', restaurantIds);
+    console.log('Payload restaurant_id:', restaurant_id);
+    cartItems.forEach(item => {
+      console.log(`Item ${item.id} restaurantId: ${item.restaurantId}, matches payload: ${item.restaurantId === restaurant_id}`);
+    });
+    if (new Set(restaurantIds).size > 1) {
       Alert.alert(
         'Restaurant Mismatch',
         'All items must be from one restaurant. You can reorder for a different restaurant in another order.',
@@ -116,7 +123,6 @@ export default function Checkout() {
       return;
     }
 
-    const restaurant_id = cartItems[0]?.restaurantId || '1';
     const payload = {
       deliveryAddress,
       phoneNumber,
@@ -129,7 +135,7 @@ export default function Checkout() {
     };
 
     try {
-      console.log('Sending payload to process_checkout.php:', payload);
+      console.log('Sending payload to process_checkout.php:', JSON.stringify(payload, null, 2));
       const response = await fetch('https://quickbite.truszedproperties.com/quickbite/api/process_checkout.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
