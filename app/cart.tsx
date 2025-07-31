@@ -18,12 +18,13 @@ interface CartItem {
   name: string;
   price: string;
   image_url: string;
+  restaurantId: string;
+  vat_fee: string;
+  delivery_fee: string;
   quantity: number;
 }
 
 const { width } = Dimensions.get('window');
-
-// Placeholder images
 const PLACEHOLDER_AVATAR = require('../assets/images/avatar.jpg');
 const PLACEHOLDER_RECIPE_CHICKEN = require('../assets/images/recipe_chicken.jpg');
 
@@ -38,7 +39,6 @@ export default function Cart() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch user data
         const id = await AsyncStorage.getItem('id');
         if (id) {
           const userResponse = await fetch(`https://quickbite.truszedproperties.com/quickbite/api/get_user.php?id=${id}`, {
@@ -47,7 +47,7 @@ export default function Cart() {
           });
           const userResult = await userResponse.json();
           if (userResult.success) {
-            const user = userResult.data; // Fixed typo: vydyResult -> userResult
+            const user = userResult.data;
             setName(user.name || '');
             setLocation(user.location || '');
           } else {
@@ -57,7 +57,6 @@ export default function Cart() {
           console.warn('No user ID found. Defaulting to empty name and location.');
         }
 
-        // Fetch cart data
         const cart = await AsyncStorage.getItem('cart');
         if (cart) {
           setCartItems(JSON.parse(cart));
@@ -94,7 +93,12 @@ export default function Cart() {
   };
 
   const total = cartItems
-    .reduce((sum, item) => sum + parseFloat(item.price.replace('₦', '') || '0') * item.quantity, 0)
+    .reduce((sum, item) => {
+      const itemPrice = parseFloat(item.price.replace('₦', '') || '0');
+      const itemVatFee = parseFloat(item.vat_fee || '0');
+      const itemDeliveryFee = parseFloat(item.delivery_fee || '0');
+      return sum + (itemPrice + itemVatFee + itemDeliveryFee) * item.quantity;
+    }, 0)
     .toFixed(2);
 
   return (
@@ -105,7 +109,6 @@ export default function Cart() {
         contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
           <View style={styles.userInfo}>
             <Image source={PLACEHOLDER_AVATAR} style={styles.avatar} />
@@ -122,7 +125,6 @@ export default function Cart() {
           </TouchableOpacity>
         </View>
 
-        {/* Cart Items */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>My Cart</Text>
         </View>
@@ -134,7 +136,7 @@ export default function Cart() {
               <Image
                 source={
                   item.image_url
-                    ? { uri: `https://quickbite.truszedproperties.com/quickbite/api/${item.image_url}` }
+                    ? { uri: `https://quickbite.truszedproperties.com/quickbite/api/uploads/${item.image_url}` }
                     : PLACEHOLDER_RECIPE_CHICKEN
                 }
                 style={styles.cartImage}
@@ -143,6 +145,8 @@ export default function Cart() {
               <View style={styles.cartInfo}>
                 <Text style={styles.cartName}>{item.name}</Text>
                 <Text style={styles.cartPrice}>{`₦${item.price}`}</Text>
+                <Text style={styles.feeText}>VAT: ₦{item.vat_fee}</Text>
+                <Text style={styles.feeText}>Delivery: ₦{item.delivery_fee}</Text>
                 <View style={styles.quantityContainer}>
                   <TouchableOpacity
                     style={styles.quantityButton}
@@ -166,7 +170,6 @@ export default function Cart() {
           ))
         )}
 
-        {/* Total and Checkout */}
         {cartItems.length > 0 && (
           <View style={styles.totalSection}>
             <Text style={styles.totalText}>Total: ₦{total}</Text>
@@ -177,7 +180,6 @@ export default function Cart() {
         )}
       </ScrollView>
 
-      {/* Bottom Navigation */}
       <View style={[styles.bottomNav, { paddingBottom: insets.bottom }]}>
         <TouchableOpacity style={styles.navItem} onPress={() => router.push('/')}>
           <Feather name="home" size={24} color="#999" />
@@ -307,6 +309,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#4ade80',
     marginTop: 5,
+  },
+  feeText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
   },
   quantityContainer: {
     flexDirection: 'row',

@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   Dimensions,
   Image,
   ScrollView,
@@ -20,6 +21,10 @@ interface Recipe {
   description: string;
   price: string;
   image_url: string;
+  category_id: string;
+  restaurantId: string;
+  vat_fee: string;
+  delivery_fee: string;
 }
 
 const { width } = Dimensions.get('window');
@@ -37,6 +42,7 @@ export default function RecipeDetails() {
   };
 
   const [recipe, setRecipe] = useState<Recipe | null>(null);
+  const [restaurantName, setRestaurantName] = useState<string>('');
 
   useEffect(() => {
     const fetchRecipeDetails = async () => {
@@ -44,17 +50,35 @@ export default function RecipeDetails() {
         const response = await fetch(`https://quickbite.truszedproperties.com/quickbite/api/get_recipe.php?id=${id}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
         });
         const result = await response.json();
         if (result.success) {
           setRecipe(result.data);
+          if (result.data.restaurantId) {
+            const restaurantResponse = await fetch(
+              `https://quickbite.truszedproperties.com/quickbite/api/get_restaurant.php?id=${result.data.restaurantId}`,
+              {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+              }
+            );
+            const restaurantResult = await restaurantResponse.json();
+            if (restaurantResult.success) {
+              setRestaurantName(restaurantResult.data.name);
+            } else {
+              console.error('Failed to fetch restaurant name:', restaurantResult.message);
+              setRestaurantName('Unknown Restaurant');
+            }
+          }
         } else {
           console.error('Failed to fetch recipe details:', result.message);
-          setRecipe({ id, name, description, price, image_url } as Recipe);
+          Alert.alert('Error', 'Failed to load recipe details. Please try again.');
         }
       } catch (error) {
         console.error('Error fetching recipe details:', error);
-        setRecipe({ id, name, description, price, image_url } as Recipe);
+        Alert.alert('Error', 'Failed to load recipe details. Please check your connection and try again.');
       }
     };
     fetchRecipeDetails();
@@ -62,15 +86,38 @@ export default function RecipeDetails() {
 
   const handleAddToCart = async () => {
     try {
+      if (!recipe) {
+        Alert.alert('Error', 'Recipe details not loaded. Please try again.');
+        return;
+      }
       const cart = await AsyncStorage.getItem('cart');
       const cartItems = cart ? JSON.parse(cart) : [];
-      const newItem = { id, name, price, image_url };
+      const itemExists = cartItems.some((item: Recipe) => item.id === id);
+      if (itemExists) {
+        Alert.alert(
+          'Item Already in Cart',
+          `${recipe.name} is already in your cart. You can adjust the quantity in the cart.`,
+          [{ text: 'Go to Cart', onPress: () => router.push('/cart') }, { text: 'OK' }]
+        );
+        return;
+      }
+      const newItem = {
+        id,
+        name: recipe.name,
+        price: recipe.price,
+        image_url: recipe.image_url,
+        restaurantId: recipe.restaurantId,
+        vat_fee: recipe.vat_fee,
+        delivery_fee: recipe.delivery_fee,
+        quantity: 1,
+      };
       cartItems.push(newItem);
       await AsyncStorage.setItem('cart', JSON.stringify(cartItems));
-      console.log(`Added ${name} to cart`);
+      console.log(`Added ${recipe.name} to cart`);
       router.push('/cart');
     } catch (error) {
       console.error('Error adding to cart:', error);
+      Alert.alert('Error', 'Failed to add item to cart. Please try again.');
     }
   };
 
@@ -84,7 +131,7 @@ export default function RecipeDetails() {
         <Image
           source={
             recipe?.image_url
-              ? { uri: `https://quickbite.truszedproperties.com/quickbite/api/uploads/${recipe.image_url}` } // Adjusted URL
+              ? { uri: `https://quickbite.truszedproperties.com/quickbite/api/uploads/${recipe.image_url}` }
               : PLACEHOLDER_RECIPE
           }
           style={styles.detailImage}
@@ -92,8 +139,12 @@ export default function RecipeDetails() {
         />
         <View style={styles.detailsContainer}>
           <Text style={styles.detailName}>{recipe?.name || 'Recipe Name'}</Text>
+          <Text style={styles.restaurantName}>From: {restaurantName || 'Unknown Restaurant'}</Text>
           <Text style={styles.detailDescription}>{recipe?.description || 'No description available.'}</Text>
           <Text style={styles.detailPrice}>{`₦${recipe?.price || '0.00'}`}</Text>
+          <Text style={styles.feeText}>VAT Fee (Maiduguri): ₦{recipe?.vat_fee || '0.00'}</Text>
+          <Text style={styles.feeText}>Delivery Fee (Maiduguri): ₦{recipe?.delivery_fee || '0.00'}</Text>
+          <Text style={styles.deliveryPartner}>Safe and Fast Delivery by Satisfy</Text>
           <TouchableOpacity style={styles.addToCartButton} onPress={handleAddToCart}>
             <Text style={styles.addToCartText}>Add to Cart</Text>
           </TouchableOpacity>
@@ -112,7 +163,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   statusBarPlaceholder: {
-    height: StatusBar.currentHeight || 0, // Handle status bar height
+    height: StatusBar.currentHeight || 0,
   },
   scrollViewContent: {
     flex: 1,
@@ -131,6 +182,12 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 10,
   },
+  restaurantName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#4ade80',
+    marginBottom: 10,
+  },
   detailDescription: {
     fontSize: 16,
     color: '#666',
@@ -141,6 +198,17 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '900',
     color: '#e63946',
+    marginBottom: 10,
+  },
+  feeText: {
+    fontSize: 16,
+    color: '#333',
+    marginBottom: 10,
+  },
+  deliveryPartner: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ff5722',
     marginBottom: 20,
   },
   addToCartButton: {

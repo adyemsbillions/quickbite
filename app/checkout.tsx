@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Dimensions,
   Image,
   ScrollView,
@@ -20,13 +21,13 @@ interface CartItem {
   name: string;
   price: string;
   image_url: string;
+  restaurantId: string;
+  vat_fee: string;
+  delivery_fee: string;
   quantity: number;
-  restaurantId?: string;
 }
 
 const { width } = Dimensions.get('window');
-
-// Placeholder images
 const PLACEHOLDER_AVATAR = require('../assets/images/avatar.jpg');
 const PLACEHOLDER_RECIPE_CHICKEN = require('../assets/images/recipe_chicken.jpg');
 
@@ -78,7 +79,12 @@ export default function Checkout() {
           const items = JSON.parse(cart);
           setCartItems(items);
           const calculatedTotal = items
-            .reduce((sum, item) => sum + parseFloat(item.price.replace('₦', '') || '0') * item.quantity, 0)
+            .reduce((sum, item) => {
+              const itemPrice = parseFloat(item.price.replace('₦', '') || '0');
+              const itemVatFee = parseFloat(item.vat_fee || '0');
+              const itemDeliveryFee = parseFloat(item.delivery_fee || '0');
+              return sum + (itemPrice + itemVatFee + itemDeliveryFee) * item.quantity;
+            }, 0)
             .toFixed(2);
           setTotal(calculatedTotal);
         }
@@ -92,18 +98,34 @@ export default function Checkout() {
 
   const handlePayment = async () => {
     if (!deliveryAddress || !phoneNumber || !userLocation) {
-      alert('Please fill in all delivery information fields.');
+      Alert.alert('Missing Information', 'Please fill in all delivery information fields.', [{ text: 'OK' }]);
       return;
     }
 
-    const restaurantId = cartItems[0]?.restaurantId || '1';
+    // Check if all items are from the same restaurant
+    const restaurantIds = new Set(cartItems.map(item => item.restaurantId));
+    if (restaurantIds.size > 1) {
+      Alert.alert(
+        'Restaurant Mismatch',
+        'All items must be from one restaurant. You can reorder for a different restaurant in another order.',
+        [
+          { text: 'Go to Cart', onPress: () => router.push('/cart') },
+          { text: 'OK' },
+        ]
+      );
+      return;
+    }
+
+    const restaurant_id = cartItems[0]?.restaurantId || '1';
     const payload = {
       deliveryAddress,
       phoneNumber,
       userLocation,
       cartItems,
       total,
-      restaurantId,
+      restaurant_id,
+      vat_fee: cartItems.reduce((sum, item) => sum + parseFloat(item.vat_fee || '0') * item.quantity, 0).toFixed(2),
+      delivery_fee: cartItems.reduce((sum, item) => sum + parseFloat(item.delivery_fee || '0') * item.quantity, 0).toFixed(2),
     };
 
     try {
@@ -130,11 +152,11 @@ export default function Checkout() {
         setShowWebView(true);
       } else {
         console.error('Payment initialization failed:', result.error);
-        alert(`Payment initialization failed: ${result.error || 'Please try again.'}`);
+        Alert.alert('Payment Error', `Payment initialization failed: ${result.error || 'Please try again.'}`, [{ text: 'OK' }]);
       }
     } catch (error) {
       console.error('Error during payment initiation:', error);
-      alert(`Error during payment: ${error.message || 'Please try again.'}`);
+      Alert.alert('Payment Error', `Error during payment: ${error.message || 'Please try again.'}`, [{ text: 'OK' }]);
     }
   };
 
@@ -147,8 +169,9 @@ export default function Checkout() {
         setTotal('0.00');
         setShowWebView(false);
         setPaymentUrl('');
-        alert('Payment successful! Your order has been placed.');
-        router.push('/');
+        Alert.alert('Success', 'Payment successful! Your order has been placed.', [
+          { text: 'OK', onPress: () => router.push('/') },
+        ]);
       }).catch((error) => {
         console.error('Error clearing cart:', error);
       });
@@ -156,14 +179,14 @@ export default function Checkout() {
       console.log('Payment cancelled');
       setShowWebView(false);
       setPaymentUrl('');
-      alert('Payment cancelled.');
+      Alert.alert('Cancelled', 'Payment cancelled.', [{ text: 'OK' }]);
     }
   };
 
   const onWebViewError = (syntheticEvent: any) => {
     const { nativeEvent } = syntheticEvent;
     console.error('WebView error:', nativeEvent);
-    alert('Failed to load payment page. Please try again.');
+    Alert.alert('Error', 'Failed to load payment page. Please try again.', [{ text: 'OK' }]);
     setShowWebView(false);
     setPaymentUrl('');
   };
@@ -223,11 +246,15 @@ export default function Checkout() {
         ) : (
           cartItems.map((item) => (
             <View key={item.id} style={styles.summaryItem}>
-              <Text style={styles.summaryName}>
-                {item.name} (x{item.quantity})
-              </Text>
+              <View>
+                <Text style={styles.summaryName}>
+                  {item.name} (x{item.quantity})
+                </Text>
+                <Text style={styles.summaryFee}>VAT: ₦{(parseFloat(item.vat_fee || '0') * item.quantity).toFixed(2)}</Text>
+                <Text style={styles.summaryFee}>Delivery: ₦{(parseFloat(item.delivery_fee || '0') * item.quantity).toFixed(2)}</Text>
+              </View>
               <Text style={styles.summaryPrice}>
-                ₦{(parseFloat(item.price.replace('₦', '') || '0') * item.quantity).toFixed(2)}
+                ₦{((parseFloat(item.price.replace('₦', '') || '0') + parseFloat(item.vat_fee || '0') + parseFloat(item.delivery_fee || '0')) * item.quantity).toFixed(2)}
               </Text>
             </View>
           ))
@@ -356,8 +383,9 @@ const styles = StyleSheet.create({
     marginBottom: 5,
     borderRadius: 10,
   },
-  summaryName: { fontSize: 16, color: '#333' },
-  summaryPrice: { fontSize: 16, color: '#4ade80' },
+  summaryName: { fontSize: 16, color: '#333', fontWeight: '600' },
+  summaryFee: { fontSize: 14, color: '#666', marginTop: 2 },
+  summaryPrice: { fontSize: 16, color: '#4ade80', fontWeight: '600' },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
