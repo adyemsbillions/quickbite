@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { memo, useEffect, useState } from 'react';
 import {
   Dimensions,
   Image,
@@ -21,6 +21,75 @@ const PLACEHOLDER_AVATAR = require('../assets/images/avatar.jpg');
 const PLACEHOLDER_CATEGORY = require('../assets/images/burger_category.jpg');
 const PLACEHOLDER_RECIPE = require('../assets/images/promo_burger.png');
 
+// Interface for TypeScript
+interface Recipe {
+  id: string;
+  name: string;
+  description: string;
+  price: string;
+  image_url: string;
+  category_id: string;
+  restaurantId: string | number;
+  vat_fee: string;
+  delivery_fee: string;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  image_url: string;
+}
+
+interface User {
+  name: string;
+  location: string;
+}
+
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
+}
+
+// Reusable RecipeCard component
+const RecipeCard = memo(
+  ({ recipe, onPress, isMoreRecipes }: { recipe: Recipe; onPress: () => void; isMoreRecipes?: boolean }) => (
+    <TouchableOpacity
+      style={isMoreRecipes ? styles.moreRecipeCard : styles.recipeCard}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`View ${recipe.name} details`}
+    >
+      <Image
+        source={
+          recipe.image_url
+            ? { uri: `https://quickbite.truszedproperties.com/quickbite/api/${recipe.image_url}` }
+            : PLACEHOLDER_RECIPE
+        }
+        style={isMoreRecipes ? styles.moreRecipeImage : styles.recipeImage}
+        onError={(e) => console.log(`Image load error for ${recipe.image_url}:`, e.nativeEvent.error)}
+      />
+      <TouchableOpacity style={styles.heartIcon}>
+        <Feather name="heart" size={isMoreRecipes ? 18 : 18} color="#ff5722" />
+      </TouchableOpacity>
+      <View style={[styles.recipeInfo, isMoreRecipes ? styles.moreRecipeInfo : {}]}>
+        <Text style={[styles.recipeName, isMoreRecipes ? styles.moreRecipeName : {}]}>{recipe.name}</Text>
+        <Text style={[styles.recipeDescription, isMoreRecipes ? styles.moreRecipeDescription : {}]}>
+          {recipe.description}
+        </Text>
+        <View style={styles.recipeFooter}>
+          <Text style={[styles.recipePrice, isMoreRecipes ? styles.moreRecipePrice : {}]}>
+            {`₦${recipe.price || '0.00'}`}
+          </Text>
+          <TouchableOpacity style={styles.addIcon}>
+            <Feather name="plus" size={isMoreRecipes ? 16 : 16} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </TouchableOpacity>
+  )
+);
+
 export default function Dashboard() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -29,8 +98,20 @@ export default function Dashboard() {
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   // State for dynamic data
-  const [categories, setCategories] = useState([]);
-  const [popularRecipes, setPopularRecipes] = useState([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [popularRecipes, setPopularRecipes] = useState<Recipe[]>([]);
+  const [allRecipes, setAllRecipes] = useState<Recipe[]>([]);
+  const [moreRecipes, setMoreRecipes] = useState<Recipe[]>([]);
+
+  // Shuffle function to randomize array
+  const shuffleArray = (array: Recipe[]): Recipe[] => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled.slice(0, 20); // Take up to 20 recipes
+  };
 
   // Fetch user data and dynamic content on mount
   useEffect(() => {
@@ -43,7 +124,7 @@ export default function Dashboard() {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
           });
-          const userResult = await userResponse.json();
+          const userResult: ApiResponse<User> = await userResponse.json();
           if (userResult.success) {
             const user = userResult.data;
             setName(user.name || '');
@@ -60,27 +141,34 @@ export default function Dashboard() {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
-        const categoriesResult = await categoriesResponse.json();
+        const categoriesResult: ApiResponse<Category[]> = await categoriesResponse.json();
         if (categoriesResult.success) {
-          console.log('Fetched Categories:', categoriesResult.data); // Debug log
+          console.log('Fetched Categories:', categoriesResult.data);
           setCategories(categoriesResult.data || []);
         } else {
           console.error('Failed to fetch categories:', categoriesResult.message);
-          setCategories([]); // Fallback to empty array
+          setCategories([]);
         }
 
-        // Fetch popular recipes
+        // Fetch all recipes
         const recipesResponse = await fetch('https://quickbite.truszedproperties.com/quickbite/api/get_recipes.php', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
-        const recipesResult = await recipesResponse.json();
+        const recipesResult: ApiResponse<Recipe[]> = await recipesResponse.json();
         if (recipesResult.success) {
-          console.log('Fetched Recipes:', recipesResult.data); // Debug log
-          setPopularRecipes(recipesResult.data || []);
+          console.log('Fetched Recipes:', recipesResult.data);
+          const fetchedRecipes = recipesResult.data || [];
+          setAllRecipes(fetchedRecipes);
+          // Set popular recipes (first 5 for display)
+          setPopularRecipes(fetchedRecipes.slice(0, 5));
+          // Set more recipes (up to 20, shuffled)
+          setMoreRecipes(shuffleArray(fetchedRecipes));
         } else {
           console.error('Failed to fetch recipes:', recipesResult.message);
-          setPopularRecipes([]); // Fallback to empty array
+          setAllRecipes([]);
+          setPopularRecipes([]);
+          setMoreRecipes([]);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -88,6 +176,17 @@ export default function Dashboard() {
     };
     fetchData();
   }, []);
+
+  // Shuffle moreRecipes every hour
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (allRecipes.length > 0) {
+        console.log('Shuffling more recipes');
+        setMoreRecipes(shuffleArray(allRecipes));
+      }
+    }, 3600 * 1000); // Every hour (3600 seconds)
+    return () => clearInterval(interval); // Cleanup on unmount
+  }, [allRecipes]);
 
   return (
     <View style={styles.container}>
@@ -176,41 +275,45 @@ export default function Dashboard() {
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recipesScroll}>
           {popularRecipes.map((recipe) => (
-            <TouchableOpacity
+            <RecipeCard
               key={recipe.id}
-              style={styles.recipeCard}
+              recipe={recipe}
               onPress={() =>
                 router.push({
                   pathname: '/recipe-details',
                   params: { id: recipe.id, name: recipe.name, description: recipe.description, price: recipe.price, image_url: recipe.image_url },
                 })
               }
-            >
-              <Image
-                source={
-                  recipe.image_url
-                    ? { uri: `https://quickbite.truszedproperties.com/quickbite/api/${recipe.image_url}` }
-                    : PLACEHOLDER_RECIPE
-                }
-                style={styles.recipeImage}
-                onError={(e) => console.log(`Image load error for ${recipe.image_url}:`, e.nativeEvent.error)}
-              />
-              <TouchableOpacity style={styles.heartIcon}>
-                <Feather name="heart" size={18} color="#ff5722" />
-              </TouchableOpacity>
-              <View style={styles.recipeInfo}>
-                <Text style={styles.recipeName}>{recipe.name}</Text>
-                <Text style={styles.recipeDescription}>{recipe.description}</Text>
-                <View style={styles.recipeFooter}>
-                  <Text style={styles.recipePrice}>{`₦${recipe.price || '0.00'}`}</Text>
-                  <TouchableOpacity style={styles.addIcon}>
-                    <Feather name="plus" size={16} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableOpacity>
+            />
           ))}
         </ScrollView>
+
+        {/* More Recipes */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>More Recipes</Text>
+          <TouchableOpacity>
+            <Text style={styles.seeMoreText}>See More</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.recipeList}>
+          {moreRecipes.length > 0 ? (
+            moreRecipes.map((recipe) => (
+              <RecipeCard
+                key={recipe.id}
+                recipe={recipe}
+                isMoreRecipes
+                onPress={() =>
+                  router.push({
+                    pathname: '/recipe-details',
+                    params: { id: recipe.id, name: recipe.name, description: recipe.description, price: recipe.price, image_url: recipe.image_url },
+                  })
+                }
+              />
+            ))
+          ) : (
+            <Text style={styles.noRecipesText}>No more recipes available</Text>
+          )}
+        </View>
       </ScrollView>
 
       {/* Bottom Navigation */}
@@ -242,7 +345,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   statusBarPlaceholder: {
-    backgroundColor: '#ffffff', // Static background color
+    backgroundColor: '#ffffff',
   },
   scrollViewContent: {
     flex: 1,
@@ -438,10 +541,15 @@ const styles = StyleSheet.create({
     paddingLeft: 20,
     marginBottom: 20,
   },
+  recipeList: {
+    paddingHorizontal: 10,
+    paddingBottom: 30,
+    alignItems: 'center', // Center cards horizontally
+  },
   recipeCard: {
     backgroundColor: '#fff',
     borderRadius: 20,
-    width: width * 0.6,
+    width: width * 0.6, // For Popular Recipes (horizontal)
     marginRight: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -450,9 +558,29 @@ const styles = StyleSheet.create({
     elevation: 5,
     overflow: 'hidden',
   },
+  moreRecipeCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    width: Math.min(Math.max(width * 0.85, 300), 400), // Larger, responsive width
+    marginBottom: 30, // Spacing between cards
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+    overflow: 'hidden',
+    alignSelf: 'center', // Center each card
+  },
   recipeImage: {
     width: '100%',
-    height: 150,
+    height: 150, // For Popular Recipes
+    resizeMode: 'cover',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  moreRecipeImage: {
+    width: '100%',
+    height: 130, // Larger height for More Recipes
     resizeMode: 'cover',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
@@ -471,16 +599,25 @@ const styles = StyleSheet.create({
   recipeInfo: {
     padding: 15,
   },
+  moreRecipeInfo: {
+    padding: 15, // Adjusted padding
+  },
   recipeName: {
     fontSize: 18,
     fontWeight: '700',
     color: '#333',
     marginBottom: 5,
   },
+  moreRecipeName: {
+    fontSize: 17, // Adjusted font
+  },
   recipeDescription: {
     fontSize: 13,
     color: '#666',
     marginBottom: 10,
+  },
+  moreRecipeDescription: {
+    fontSize: 13, // Adjusted font
   },
   recipeFooter: {
     flexDirection: 'row',
@@ -493,6 +630,9 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#e63946',
   },
+  moreRecipePrice: {
+    fontSize: 17, // Adjusted font
+  },
   addIcon: {
     backgroundColor: '#ff5722',
     borderRadius: 15,
@@ -500,6 +640,12 @@ const styles = StyleSheet.create({
     height: 30,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  noRecipesText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 20,
   },
   bottomNav: {
     flexDirection: 'row',
