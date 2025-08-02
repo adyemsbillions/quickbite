@@ -6,6 +6,7 @@ import {
   Alert,
   Dimensions,
   Image,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -45,39 +46,36 @@ export default function Checkout() {
   const [total, setTotal] = useState<string>('0.00');
   const [showWebView, setShowWebView] = useState<boolean>(false);
   const [paymentUrl, setPaymentUrl] = useState<string>('');
+  const [showReloginModal, setShowReloginModal] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const id = await AsyncStorage.getItem('id');
-        console.log('Retrieved ID from AsyncStorage:', id);
-        if (id) {
-          const userResponse = await fetch(`https://quickbite.truszedproperties.com/quickbite/api/get_user.php?id=${id}`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-          });
-          const userResult = await userResponse.json();
-          console.log('Fetch User Data Response:', userResult);
-          if (userResult.success) {
-            const user = userResult.data;
-            setName(user.name || '');
-            setLocation(user.location || '');
-            setDeliveryAddress(user.location || '');
-          } else {
-            console.error('Failed to fetch user data:', userResult.message);
-            alert('Session expired. Please log in again.');
-            router.replace('/login');
-          }
+        if (!id) {
+          setShowReloginModal(true);
+          return;
+        }
+
+        const userResponse = await fetch(`https://quickbite.truszedproperties.com/quickbite/api/get_user.php?id=${id}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+        const userResult = await userResponse.json();
+        if (userResult.success) {
+          const user = userResult.data;
+          setName(user.name || '');
+          setLocation(user.location || '');
+          setDeliveryAddress(user.location || '');
         } else {
-          console.warn('No user ID found. Redirecting to login.');
-          router.replace('/login');
+          setShowReloginModal(true);
+          return;
         }
 
         const cart = await AsyncStorage.getItem('cart');
         if (cart) {
           const items = JSON.parse(cart);
-          console.log('Cart Items from AsyncStorage:', JSON.stringify(items, null, 2));
           setCartItems(items);
           const calculatedTotal = items
             .reduce((sum, item) => {
@@ -90,8 +88,9 @@ export default function Checkout() {
           setTotal(calculatedTotal);
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
-        alert('An error occurred. Please try again.');
+        Alert.alert('Error', 'An error occurred while loading checkout data. Please try again.', [
+          { text: 'OK' },
+        ]);
       }
     };
     fetchData();
@@ -103,14 +102,8 @@ export default function Checkout() {
       return;
     }
 
-    // Check if all items are from the same restaurant
     const restaurantIds = cartItems.map(item => item.restaurantId);
     const restaurant_id = cartItems[0]?.restaurantId || '1';
-    console.log('Restaurant IDs from cartItems:', restaurantIds);
-    console.log('Payload restaurant_id:', restaurant_id);
-    cartItems.forEach(item => {
-      console.log(`Item ${item.id} restaurantId: ${item.restaurantId}, matches payload: ${item.restaurantId === restaurant_id}`);
-    });
     if (new Set(restaurantIds).size > 1) {
       Alert.alert(
         'Restaurant Mismatch',
@@ -135,7 +128,6 @@ export default function Checkout() {
     };
 
     try {
-      console.log('Sending payload to process_checkout.php:', JSON.stringify(payload, null, 2));
       const response = await fetch('https://quickbite.truszedproperties.com/quickbite/api/process_checkout.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -144,32 +136,28 @@ export default function Checkout() {
       });
 
       const rawResponse = await response.text();
-      console.log('Raw response from process_checkout.php:', rawResponse);
       let result;
       try {
         result = JSON.parse(rawResponse);
       } catch (e) {
-        console.error('JSON Parse Error:', e, 'Raw Response:', rawResponse);
         throw new Error('Invalid JSON response from server');
       }
 
       if (result.status === 'success' && result.authorization_url) {
         setPaymentUrl(result.authorization_url);
         setShowWebView(true);
+      } else if (result.error && result.error.toLowerCase().includes('not logged in')) {
+        setShowReloginModal(true);
       } else {
-        console.error('Payment initialization failed:', result.error);
         Alert.alert('Payment Error', `Payment initialization failed: ${result.error || 'Please try again.'}`, [{ text: 'OK' }]);
       }
     } catch (error) {
-      console.error('Error during payment initiation:', error);
       Alert.alert('Payment Error', `Error during payment: ${error.message || 'Please try again.'}`, [{ text: 'OK' }]);
     }
   };
 
   const onNavigationStateChange = (navState: { url: string; loading: boolean }) => {
-    console.log('Navigation state changed:', navState.url, 'Loading:', navState.loading);
     if (navState.url.includes('success')) {
-      console.log('Payment successful');
       AsyncStorage.removeItem('cart').then(() => {
         setCartItems([]);
         setTotal('0.00');
@@ -178,11 +166,8 @@ export default function Checkout() {
         Alert.alert('Success', 'Payment successful! Your order has been placed.', [
           { text: 'OK', onPress: () => router.push('/') },
         ]);
-      }).catch((error) => {
-        console.error('Error clearing cart:', error);
-      });
+      }).catch(() => {});
     } else if (navState.url.includes('cancel')) {
-      console.log('Payment cancelled');
       setShowWebView(false);
       setPaymentUrl('');
       Alert.alert('Cancelled', 'Payment cancelled.', [{ text: 'OK' }]);
@@ -191,7 +176,6 @@ export default function Checkout() {
 
   const onWebViewError = (syntheticEvent: any) => {
     const { nativeEvent } = syntheticEvent;
-    console.error('WebView error:', nativeEvent);
     Alert.alert('Error', 'Failed to load payment page. Please try again.', [{ text: 'OK' }]);
     setShowWebView(false);
     setPaymentUrl('');
@@ -304,6 +288,34 @@ export default function Checkout() {
           </TouchableOpacity>
         </View>
       )}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showReloginModal}
+        onRequestClose={() => {
+          setShowReloginModal(false);
+          AsyncStorage.removeItem('id').then(() => router.replace('/login'));
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Feather name="lock" size={40} color="#ff5722" style={styles.modalIcon} />
+            <Text style={styles.modalTitle}>Login Required</Text>
+            <Text style={styles.modalMessage}>
+              Oops! You need to login again to make payment, and dont worry your cart wont be cleared
+            </Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => {
+                setShowReloginModal(false);
+                AsyncStorage.removeItem('id').then(() => router.replace('/login'));
+              }}
+            >
+              <Text style={styles.modalButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
       <View style={[styles.bottomNav, { paddingBottom: insets.bottom }]}>
         <TouchableOpacity style={styles.navItem} onPress={() => router.push('/')}>
           <Feather name="home" size={24} color="#999" />
@@ -476,4 +488,50 @@ const styles = StyleSheet.create({
   navItem: { alignItems: 'center', paddingVertical: 5 },
   navText: { fontSize: 12, color: '#999', marginTop: 4, fontWeight: '600' },
   navTextActive: { fontSize: 12, color: '#ff5722', marginTop: 4, fontWeight: '700' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: width * 0.8,
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalIcon: {
+    marginBottom: 15,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 10,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  modalButton: {
+    backgroundColor: '#ff5722',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    width: '100%',
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });
