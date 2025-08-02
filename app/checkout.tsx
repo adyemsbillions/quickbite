@@ -265,6 +265,10 @@ export default function Checkout() {
             </View>
           ))
         )}
+        <View style={styles.deliveryCard}>
+          <Feather name="truck" size={20} color="#ff5722" />
+          <Text style={styles.deliveryText}>Safe and Fast Delivery by Satisfy</Text>
+        </View>
         <View style={styles.totalRow}>
           <Text style={styles.totalText}>Total:</Text>
           <Text style={styles.totalAmount}>{`₦${total}`}</Text>
@@ -392,6 +396,27 @@ const styles = StyleSheet.create({
   summaryName: { fontSize: 16, color: '#333', fontWeight: '600' },
   summaryFee: { fontSize: 14, color: '#666', marginTop: 2 },
   summaryPrice: { fontSize: 16, color: '#4ade80', fontWeight: '600' },
+  deliveryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
+    marginBottom: 10,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  deliveryText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '600',
+    marginLeft: 10,
+  },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
