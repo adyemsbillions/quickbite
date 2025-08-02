@@ -102,6 +102,9 @@ export default function Dashboard() {
   const [popularRecipes, setPopularRecipes] = useState<Recipe[]>([]);
   const [allRecipes, setAllRecipes] = useState<Recipe[]>([]);
   const [moreRecipes, setMoreRecipes] = useState<Recipe[]>([]);
+  // State for search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
 
   // Shuffle function to randomize array
   const shuffleArray = (array: Recipe[]): Recipe[] => {
@@ -111,6 +114,40 @@ export default function Dashboard() {
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
     return shuffled.slice(0, 20); // Take up to 20 recipes
+  };
+
+  // Search function for suggestions
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    if (query.trim() === '') {
+      setSuggestions([]);
+      setMoreRecipes(shuffleArray(allRecipes));
+    } else {
+      const filtered = allRecipes
+        .filter((recipe) => recipe.name.toLowerCase().includes(query.toLowerCase()))
+        .map((recipe) => recipe.name);
+      setSuggestions(filtered.slice(0, 5)); // Show up to 5 suggestions
+    }
+  };
+
+  // Handle Enter key press to navigate
+  const handleKeyPress = (event: any) => {
+    if (event.nativeEvent.key === 'Enter' && searchQuery.trim() !== '') {
+      router.push({
+        pathname: '/search-results',
+        params: { query: searchQuery },
+      });
+    }
+  };
+
+  // Handle search icon click to navigate
+  const handleSearchIconPress = () => {
+    if (searchQuery.trim() !== '') {
+      router.push({
+        pathname: '/search-results',
+        params: { query: searchQuery },
+      });
+    }
   };
 
   // Fetch user data and dynamic content on mount
@@ -180,13 +217,13 @@ export default function Dashboard() {
   // Shuffle moreRecipes every hour
   useEffect(() => {
     const interval = setInterval(() => {
-      if (allRecipes.length > 0) {
+      if (allRecipes.length > 0 && searchQuery.trim() === '') {
         console.log('Shuffling more recipes');
         setMoreRecipes(shuffleArray(allRecipes));
       }
     }, 3600 * 1000); // Every hour (3600 seconds)
     return () => clearInterval(interval); // Cleanup on unmount
-  }, [allRecipes]);
+  }, [allRecipes, searchQuery]);
 
   return (
     <View style={styles.container}>
@@ -221,9 +258,30 @@ export default function Dashboard() {
               style={styles.searchInput}
               placeholder='Search "biryani"'
               placeholderTextColor="#999"
+              value={searchQuery}
+              onChangeText={handleSearch}
+              onKeyPress={handleKeyPress}
             />
-            <Feather name="search" size={20} color="#666" style={styles.searchIcon} />
+            <TouchableOpacity onPress={handleSearchIconPress}>
+              <Feather name="search" size={20} color="#666" style={styles.searchIcon} />
+            </TouchableOpacity>
           </View>
+          {/* Suggestions as plain text */}
+          {suggestions.length > 0 && (
+            <View style={styles.suggestionsContainer}>
+              {suggestions.map((suggestion, index) => (
+                <TouchableOpacity
+                  key={index}
+                  onPress={() => router.push({
+                    pathname: '/search-results',
+                    params: { query: suggestion },
+                  })}
+                >
+                  <Text style={styles.suggestionText}>{suggestion}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Promotional Banner */}
@@ -432,6 +490,22 @@ const styles = StyleSheet.create({
   },
   searchIcon: {
     marginLeft: 10,
+  },
+  suggestionsContainer: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  suggestionText: {
+    fontSize: 16,
+    color: '#333',
+    paddingVertical: 5,
   },
   promoBanner: {
     backgroundColor: '#ff5722',
