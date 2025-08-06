@@ -41,7 +41,7 @@ export default function Cart() {
       try {
         const id = await AsyncStorage.getItem('id');
         if (id) {
-          const userResponse = await fetch(`https://quickbite.truszedproperties.com/quickbite/api/get_user.php?id=${id}`, {
+          const userResponse = await fetch(`https://cravii.ng/cravii/api/get_user.php?id=${id}`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
           });
@@ -136,7 +136,7 @@ export default function Cart() {
               <Image
                 source={
                   item.image_url
-                    ? { uri: `https://quickbite.truszedproperties.com/quickbite/api/uploads/${item.image_url}` }
+                    ? { uri: `https://cravii.ng/cravii/api/uploads/${item.image_url}` }
                     : PLACEHOLDER_RECIPE_CHICKEN
                 }
                 style={styles.cartImage}

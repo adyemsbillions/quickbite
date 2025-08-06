@@ -21,7 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const { width } = Dimensions.get('window');
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://quickbite.truszedproperties.com';
-const IMAGE_BASE_URL = 'https://quickbite.truszedproperties.com/quickbite/api/uploads/';
+const IMAGE_BASE_URL = 'https://cravii.ng/cravii/api/uploads/';
 
 // Placeholder image for fallback
 const PLACEHOLDER_RECIPE = require('../assets/images/recipe_chicken.jpg');

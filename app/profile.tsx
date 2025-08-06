@@ -46,7 +46,7 @@ export default function Profile() {
           throw new Error('No user ID found. Please log in.');
         }
 
-        const response = await fetch(`https://quickbite.truszedproperties.com/quickbite/api/get_user.php?id=${id}`, {
+        const response = await fetch(`https://cravii.ng/cravii/api/get_user.php?id=${id}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -87,7 +87,7 @@ export default function Profile() {
     const userData = { id, name, location, gender };
 
     try {
-      const response = await fetch('https://quickbite.truszedproperties.com/quickbite/api/update_profile.php', {
+      const response = await fetch('https://cravii.ng/cravii/api/update_profile.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

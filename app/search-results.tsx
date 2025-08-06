@@ -2,13 +2,13 @@ import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Dimensions,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -42,7 +42,7 @@ const RecipeCard = ({ recipe, onPress }: { recipe: Recipe; onPress: () => void }
     <Image
       source={
         recipe.image_url
-          ? { uri: `https://quickbite.truszedproperties.com/quickbite/api/${recipe.image_url}` }
+          ? { uri: `https://cravii.ng/cravii/api/${recipe.image_url}` }
           : require('../assets/images/promo_burger.png')
       }
       style={styles.recipeImage}
@@ -76,7 +76,7 @@ export default function SearchResults() {
   useEffect(() => {
     const fetchRecipes = async () => {
       try {
-        const response = await fetch('https://quickbite.truszedproperties.com/quickbite/api/get_recipes.php', {
+        const response = await fetch('https://cravii.ng/cravii/api/get_recipes.php', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });

@@ -63,7 +63,7 @@ const RecipeCard = memo(
       <Image
         source={
           recipe.image_url
-            ? { uri: `https://quickbite.truszedproperties.com/quickbite/api/${recipe.image_url}` }
+            ? { uri: `https://cravii.ng/cravii/api/${recipe.image_url}` }
             : PLACEHOLDER_RECIPE
         }
         style={isMoreRecipes ? styles.moreRecipeImage : styles.recipeImage}
@@ -157,7 +157,7 @@ export default function Dashboard() {
         // Fetch user data
         const id = await AsyncStorage.getItem('id');
         if (id) {
-          const userResponse = await fetch(`https://quickbite.truszedproperties.com/quickbite/api/get_user.php?id=${id}`, {
+          const userResponse = await fetch(`https://cravii.ng/cravii/api/get_user.php?id=${id}`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
           });
@@ -174,7 +174,7 @@ export default function Dashboard() {
         }
 
         // Fetch categories
-        const categoriesResponse = await fetch('https://quickbite.truszedproperties.com/quickbite/api/get_categories.php', {
+        const categoriesResponse = await fetch('https://cravii.ng/cravii/api/get_categories.php', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -188,7 +188,7 @@ export default function Dashboard() {
         }
 
         // Fetch all recipes
-        const recipesResponse = await fetch('https://quickbite.truszedproperties.com/quickbite/api/get_recipes.php', {
+        const recipesResponse = await fetch('https://cravii.ng/cravii/api/get_recipes.php', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -312,7 +312,7 @@ export default function Dashboard() {
                 <Image
                   source={
                     category.image_url
-                      ? { uri: `https://quickbite.truszedproperties.com/quickbite/api/${category.image_url}` }
+                      ? { uri: `https://cravii.ng/cravii/api/${category.image_url}` }
                       : PLACEHOLDER_CATEGORY
                   }
                   style={styles.categoryImage}

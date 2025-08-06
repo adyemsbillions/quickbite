@@ -47,7 +47,7 @@ export default function RecipeDetails() {
   useEffect(() => {
     const fetchRecipeDetails = async () => {
       try {
-        const response = await fetch(`https://quickbite.truszedproperties.com/quickbite/api/get_recipe.php?id=${id}`, {
+        const response = await fetch(`https://cravii.ng/cravii/api/get_recipe.php?id=${id}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -57,7 +57,7 @@ export default function RecipeDetails() {
           setRecipe(result.data);
           if (result.data.restaurantId) {
             const restaurantResponse = await fetch(
-              `https://quickbite.truszedproperties.com/quickbite/api/get_restaurant.php?id=${result.data.restaurantId}`,
+              `https://cravii.ng/cravii/api/get_restaurant.php?id=${result.data.restaurantId}`,
               {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
@@ -131,7 +131,7 @@ export default function RecipeDetails() {
         <Image
           source={
             recipe?.image_url
-              ? { uri: `https://quickbite.truszedproperties.com/quickbite/api/uploads/${recipe.image_url}` }
+              ? { uri: `https://cravii.ng/cravii/api/uploads/${recipe.image_url}` }
               : PLACEHOLDER_RECIPE
           }
           style={styles.detailImage}

@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
   Dimensions,
   Image,
   Modal,
@@ -30,13 +31,11 @@ interface CartItem {
 
 const { width } = Dimensions.get('window');
 const PLACEHOLDER_AVATAR = require('../assets/images/avatar.jpg');
-const PLACEHOLDER_RECIPE_CHICKEN = require('../assets/images/recipe_chicken.jpg');
 
 export default function Checkout() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const webviewRef = useRef<WebView>(null);
-
   const [name, setName] = useState<string>('');
   const [location, setLocation] = useState<string>('');
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -47,6 +46,9 @@ export default function Checkout() {
   const [showWebView, setShowWebView] = useState<boolean>(false);
   const [paymentUrl, setPaymentUrl] = useState<string>('');
   const [showReloginModal, setShowReloginModal] = useState<boolean>(false);
+  const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
+  const [orderId, setOrderId] = useState<number | null>(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -57,7 +59,7 @@ export default function Checkout() {
           return;
         }
 
-        const userResponse = await fetch(`https://quickbite.truszedproperties.com/quickbite/api/get_user.php?id=${id}`, {
+        const userResponse = await fetch(`https://cravii.ng/cravii/api/get_user.php?id=${id}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -96,6 +98,16 @@ export default function Checkout() {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (showSuccessModal) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [showSuccessModal]);
+
   const handlePayment = async () => {
     if (!deliveryAddress || !phoneNumber || !userLocation) {
       Alert.alert('Missing Information', 'Please fill in all delivery information fields.', [{ text: 'OK' }]);
@@ -128,7 +140,7 @@ export default function Checkout() {
     };
 
     try {
-      const response = await fetch('https://quickbite.truszedproperties.com/quickbite/api/process_checkout.php', {
+      const response = await fetch('https://cravii.ng/cravii/api/process_checkout.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -145,6 +157,7 @@ export default function Checkout() {
 
       if (result.status === 'success' && result.authorization_url) {
         setPaymentUrl(result.authorization_url);
+        setOrderId(result.order_id || null);
         setShowWebView(true);
       } else if (result.error && result.error.toLowerCase().includes('not logged in')) {
         setShowReloginModal(true);
@@ -163,9 +176,23 @@ export default function Checkout() {
         setTotal('0.00');
         setShowWebView(false);
         setPaymentUrl('');
-        Alert.alert('Success', 'Payment successful! Your order has been placed.', [
-          { text: 'OK', onPress: () => router.push('/') },
-        ]);
+        setShowSuccessModal(true);
+
+        if (orderId) {
+          fetch('https://cravii.ng/cravii/api/success_email.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ order_id: orderId }),
+          })
+            .then(response => response.json())
+            .then(data => {
+              if (data.status !== 'success') {
+                console.error('Failed to send email:', data.error);
+              }
+            })
+            .catch(error => console.error('Error sending email:', error));
+        }
       }).catch(() => {});
     } else if (navState.url.includes('cancel')) {
       setShowWebView(false);
@@ -250,8 +277,11 @@ export default function Checkout() {
           ))
         )}
         <View style={styles.deliveryCard}>
-          <Feather name="truck" size={20} color="#ff5722" />
-          <Text style={styles.deliveryText}>Safe and Fast Delivery by Satisfy</Text>
+          <Text style={styles.deliveryText}>Safe and Fast Delivery by</Text>
+          <Image
+            source={{ uri: 'https://cravii.ng/cravii/api/images/satisfylogo.png' }}
+            style={styles.deliveryLogo}
+          />
         </View>
         <View style={styles.totalRow}>
           <Text style={styles.totalText}>Total:</Text>
@@ -288,6 +318,34 @@ export default function Checkout() {
           </TouchableOpacity>
         </View>
       )}
+      <Modal
+        animationType="none"
+        transparent={true}
+        visible={showSuccessModal}
+        onRequestClose={() => {
+          setShowSuccessModal(false);
+          router.push('/');
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <Animated.View style={[styles.successModalContainer, { opacity: fadeAnim }]}>
+            <Feather name="check-circle" size={50} color="#4ade80" style={styles.successModalIcon} />
+            <Text style={styles.successModalTitle}>Order Placed Successfully!</Text>
+            <Text style={styles.successModalMessage}>
+              Yum! Your order is on its way. You'll receive a confirmation soon, and our team is working to get your food to you fast!
+            </Text>
+            <TouchableOpacity
+              style={styles.successModalButton}
+              onPress={() => {
+                setShowSuccessModal(false);
+                router.push('/');
+              }}
+            >
+              <Text style={styles.successModalButtonText}>Back to Home</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </Modal>
       <Modal
         animationType="fade"
         transparent={true}
@@ -411,9 +469,10 @@ const styles = StyleSheet.create({
   deliveryCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    justifyContent: 'center',
     paddingVertical: 10,
-    backgroundColor: '#fff',
+    paddingHorizontal: 20,
+    backgroundColor: '#333333',
     marginHorizontal: 20,
     marginBottom: 10,
     borderRadius: 10,
@@ -425,9 +484,14 @@ const styles = StyleSheet.create({
   },
   deliveryText: {
     fontSize: 14,
-    color: '#333',
+    color: '#ffffff',
     fontWeight: '600',
-    marginLeft: 10,
+    marginRight: 10,
+  },
+  deliveryLogo: {
+    width: 100,
+    height: 40,
+    resizeMode: 'contain',
   },
   totalRow: {
     flexDirection: 'row',
@@ -530,6 +594,55 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  successModalContainer: {
+    width: width * 0.85,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 25,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+    borderWidth: 2,
+    borderColor: '#4ade80',
+  },
+  successModalIcon: {
+    marginBottom: 20,
+  },
+  successModalTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  successModalMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 25,
+    lineHeight: 24,
+  },
+  successModalButton: {
+    backgroundColor: '#ff5722',
+    borderRadius: 15,
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    alignItems: 'center',
+    width: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  successModalButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
