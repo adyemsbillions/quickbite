@@ -307,18 +307,7 @@ export default function Dashboard() {
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesScroll}>
           {categories.map((category, index) => (
-            <TouchableOpacity
-              key={index}
-              style={styles.categoryItem}
-              onPress={() =>
-                router.push({
-                  pathname: '/categories',
-                  params: { id: category.id, name: category.name },
-                })
-              }
-              accessibilityRole="button"
-              accessibilityLabel={`View ${category.name} recipes`}
-            >
+            <TouchableOpacity key={index} style={styles.categoryItem}>
               <View style={styles.categoryImageWrapper}>
                 <Image
                   source={
