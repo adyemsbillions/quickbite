@@ -256,7 +256,7 @@ export default function Dashboard() {
           <View style={styles.searchInputContainer}>
             <TextInput
               style={styles.searchInput}
-              placeholder='Search "biryani"'
+              placeholder='Search Any recipe..'
               placeholderTextColor="#999"
               value={searchQuery}
               onChangeText={handleSearch}
@@ -323,7 +323,7 @@ export default function Dashboard() {
                 <Image
                   source={
                     category.image_url
-                      ? { uri: `https://cravii.ng/cravii/api/${category.image_url}` }
+                      ? { uri: `https://cravii.ng/cravii/api/restaurant/${category.image_url}` }
                       : PLACEHOLDER_CATEGORY
                   }
                   style={styles.categoryImage}

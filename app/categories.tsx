@@ -2,13 +2,13 @@ import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { memo, useEffect, useState } from 'react';
 import {
-    Dimensions,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -49,7 +49,7 @@ const RecipeCard = memo(
       <Image
         source={
           recipe.image_url
-            ? { uri: `https://cravii.ng/cravii/api/uploads/${recipe.image_url}` }
+            ? { uri: `https://cravii.ng/cravii/api/${recipe.image_url}` }
             : PLACEHOLDER_RECIPE
         }
         style={styles.recipeImage}

@@ -66,7 +66,7 @@ export default function HomeScreen() {
             {/* Floating Title */}
             <View style={styles.titleSection}>
               {/* <Text style={styles.fastText}>Quick</Text> */}
-              <Text style={styles.foodText}>cravi</Text>
+              <Text style={styles.foodText}>cravii</Text>
               <View style={styles.underline} />
             </View>
 
