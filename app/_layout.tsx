@@ -50,6 +50,12 @@ export default function RootLayout() {
         }}
       />
       <Stack.Screen
+        name="influencers"
+        options={{
+          headerShown: false, // Consistent with other screens
+        }}
+      />
+      <Stack.Screen
         name="admin"
         options={{
           title: 'Admin Panel',

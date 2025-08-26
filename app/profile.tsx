@@ -32,6 +32,7 @@ export default function Profile() {
   const [email, setEmail] = useState('');
   const [location, setLocation] = useState('');
   const [gender, setGender] = useState('');
+  const [referralCode, setReferralCode] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
   const [modalType, setModalType] = useState('success'); // 'success' or 'error'
@@ -50,9 +51,17 @@ export default function Profile() {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
           },
         });
-        const result = await response.json();
+        const contentType = response.headers.get('content-type');
+        const text = await response.text();
+
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error('Invalid server response');
+        }
+
+        const result = JSON.parse(text);
         console.log('Fetch User Data Response:', result); // Debug
         if (result.success) {
           const user = result.data;
@@ -60,13 +69,14 @@ export default function Profile() {
           setEmail(user.email || '');
           setLocation(user.location || '');
           setGender(user.gender || '');
+          setReferralCode(user.referral_code || '');
         } else {
           throw new Error(result.message || 'Failed to fetch user data');
         }
       } catch (error) {
         console.error('Error fetching user data:', error.message);
         Alert.alert('Error', error.message, [
-          { text: 'OK', onPress: () => router.push('/login') }, // Adjust '/login' to your login route
+          { text: 'OK', onPress: () => router.push('/login') },
         ]);
       }
     };
@@ -84,7 +94,7 @@ export default function Profile() {
       return;
     }
 
-    const userData = { id, name, location, gender };
+    const userData = { id, name, location, gender, referral_code: referralCode };
 
     try {
       const response = await fetch('https://cravii.ng/cravii/api/update_profile.php', {
@@ -169,6 +179,12 @@ export default function Profile() {
               onChangeText={setGender}
               placeholder="Gender (e.g., Male/Female/Other)"
             />
+            <TextInput
+              style={[styles.profileInfoInput, styles.readOnlyInput]}
+              value={referralCode}
+              editable={false} // Read-only referral code
+              placeholder="Referral Code"
+            />
             <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
               <Text style={styles.saveButtonText}>Save Changes</Text>
             </TouchableOpacity>
@@ -186,11 +202,15 @@ export default function Profile() {
             <Feather name="lock" size={20} color="#333" />
             <Text style={styles.settingText}>Change Password</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.settingItem} onPress={() => router.push('/influencers')}>
+            <Feather name="dollar-sign" size={20} color="#333" />
+            <Text style={styles.settingText}>Influencer Program</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.settingItem}
             onPress={() => {
               AsyncStorage.removeItem('id');
-              router.push('/login'); // Adjust to your login route
+              router.push('/login');
             }}
           >
             <Feather name="log-out" size={20} color="#333" />
