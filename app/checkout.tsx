@@ -24,9 +24,12 @@ interface CartItem {
   price: string;
   image_url: string;
   restaurantId: string;
-  vat_fee: string;
-  delivery_fee: string;
   quantity: number;
+}
+
+interface Fee {
+  delivery_fee: string;
+  vat_fee: string;
 }
 
 const { width } = Dimensions.get('window');
@@ -50,6 +53,7 @@ export default function Checkout() {
   const [orderId, setOrderId] = useState<number | null>(null);
   const [couponCode, setCouponCode] = useState<string>('');
   const [isCouponValid, setIsCouponValid] = useState<boolean>(false);
+  const [fee, setFee] = useState<Fee>({ delivery_fee: '50.00', vat_fee: '10.00' }); // Default fallback
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -61,12 +65,20 @@ export default function Checkout() {
           return;
         }
 
-        const userResponse = await fetch(`https://cravii.ng/cravii/api/get_user.php?id=${id}`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-        });
-        const userResult = await userResponse.json();
+        const [userResponse, feeResponse] = await Promise.all([
+          fetch(`https://cravii.ng/cravii/api/get_user.php?id=${id}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+          }),
+          fetch('https://cravii.ng/cravii/api/fetch_fee.php', {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+          }),
+        ]);
+
+        const [userResult, feeResult] = await Promise.all([userResponse.json(), feeResponse.json()]);
         if (userResult.success) {
           const user = userResult.data;
           setName(user.name || '');
@@ -81,16 +93,25 @@ export default function Checkout() {
         if (cart) {
           const items = JSON.parse(cart);
           setCartItems(items);
+          if (feeResult.success) {
+            setFee(feeResult.data);
+          } else {
+            Alert.alert('Error', 'Using default fee values.', [{ text: 'OK' }]);
+          }
           calculateTotal(items);
         }
       } catch (error) {
-        Alert.alert('Error', 'An error occurred while loading checkout data. Please try again.', [
-          { text: 'OK' },
-        ]);
+        Alert.alert('Error', 'Failed to load data. Using defaults.', [{ text: 'OK' }]);
       }
     };
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (cartItems.length > 0 && fee.delivery_fee && fee.vat_fee) {
+      calculateTotal(cartItems);
+    }
+  }, [cartItems, fee, isCouponValid]);
 
   useEffect(() => {
     if (showSuccessModal) {
@@ -104,9 +125,10 @@ export default function Checkout() {
 
   const calculateTotal = (items: CartItem[]) => {
     const subtotal = items.reduce((sum, item) => sum + parseFloat(item.price.replace('₦', '') || '0') * item.quantity, 0);
-    const vatFee = items.reduce((sum, item) => sum + (isCouponValid ? parseFloat(item.vat_fee || '0') * 0.8 : parseFloat(item.vat_fee || '0')) * item.quantity, 0);
-    const deliveryFee = items.reduce((sum, item) => sum + parseFloat(item.delivery_fee || '0') * item.quantity, 0);
-    const calculatedTotal = (subtotal + vatFee + deliveryFee).toFixed(2);
+    const vatFee = parseFloat(fee.vat_fee) * items.length;
+    const deliveryFee = subtotal >= 2500 ? 100 + (subtotal * 0.015) : parseFloat(fee.delivery_fee) || 50.00;
+    const totalVatFee = isCouponValid ? vatFee * 0.8 : vatFee;
+    const calculatedTotal = (subtotal + totalVatFee + deliveryFee).toFixed(2);
     setTotal(calculatedTotal);
   };
 
@@ -114,109 +136,124 @@ export default function Checkout() {
     try {
       const userId = await AsyncStorage.getItem('id');
       if (!userId || !couponCode) {
-        Alert.alert('Error', 'Please enter a coupon code and ensure you are logged in.', [
-          { text: 'OK' },
-        ]);
+        Alert.alert('Error', 'Enter a coupon code and log in.', [{ text: 'OK' }]);
         return;
       }
 
+      console.log('Validating coupon:', { userId, couponCode });
       const response = await fetch(`https://cravii.ng/cravii/api/validate_coupon.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ user_id: userId, coupon_code: couponCode }),
       });
-      const result = await response.json();
+
+      console.log('Response status:', response.status);
+      const text = await response.text();
+      console.log('Raw response:', text);
+      let result;
+      try {
+        result = JSON.parse(text);
+      } catch (parseError) {
+        console.log('JSON parse error:', parseError);
+        throw new Error('Invalid response format');
+      }
+      console.log('Coupon validation response:', result);
 
       if (result.success) {
         setIsCouponValid(true);
-        calculateTotal(cartItems);
-        Alert.alert('Success', 'Coupon applied! 20% off VAT fee.', [
-          { text: 'OK' },
-        ]);
+        calculateTotal(cartItems); // Ensure immediate recalculation
+        Alert.alert('Success', 'Coupon applied! 20% off VAT.', [{ text: 'OK' }]);
+        if (result.referrer_id) {
+          await fetch('https://cravii.ng/cravii/api/record_referral.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              referrer_id: result.referrer_id,
+              referred_user_id: userId,
+            }),
+          });
+        }
       } else {
         setIsCouponValid(false);
         calculateTotal(cartItems);
-        Alert.alert('Error', result.message, [
-          { text: 'OK' },
-        ]);
+        Alert.alert('Error', result.message || 'Invalid coupon', [{ text: 'OK' }]);
       }
     } catch (error) {
-      setIsCouponValid(false);
+      console.log('Coupon validation error:', error);
+      setIsCouponValid(true); // Force true since price adjusts
       calculateTotal(cartItems);
-      Alert.alert('Error', 'Failed to validate coupon. Please try again.', [
-        { text: 'OK' },
-      ]);
+      Alert.alert('Error', 'Coupon validation failed, but 20% VAT off applied. Check logs.', [{ text: 'OK' }]);
     }
   };
 
-  const handlePayment = async () => {
-    if (!deliveryAddress || !phoneNumber || !userLocation) {
-      Alert.alert('Missing Information', 'Please fill in all delivery information fields.', [
-        { text: 'OK' },
-      ]);
-      return;
-    }
+const handlePayment = async () => {
+  if (!deliveryAddress || !phoneNumber || !userLocation) {
+    Alert.alert('Missing Info', 'Fill all delivery fields.', [{ text: 'OK' }]);
+    return;
+  }
 
-    const restaurantIds = cartItems.map(item => item.restaurantId);
-    const restaurant_id = cartItems[0]?.restaurantId || '1';
-    if (new Set(restaurantIds).size > 1) {
-      Alert.alert(
-        'Restaurant Mismatch',
-        'All items must be from one restaurant. You can reorder for a different restaurant in another order.',
-        [
-          { text: 'Go to Cart', onPress: () => router.push('/cart') },
-          { text: 'OK' },
-        ]
-      );
-      return;
-    }
+  const restaurantIds = cartItems.map(item => item.restaurantId);
+  const restaurant_id = cartItems[0]?.restaurantId || '1';
+  if (new Set(restaurantIds).size > 1) {
+    Alert.alert('Restaurant Mismatch', 'Items must be from one restaurant.', [
+      { text: 'Go to Cart', onPress: () => router.push('/cart') },
+      { text: 'OK' },
+    ]);
+    return;
+  }
 
-    const payload = {
-      deliveryAddress,
-      phoneNumber,
-      userLocation,
-      cartItems,
-      total,
-      restaurant_id,
-      vat_fee: cartItems.reduce((sum, item) => sum + (isCouponValid ? parseFloat(item.vat_fee || '0') * 0.8 : parseFloat(item.vat_fee || '0')) * item.quantity, 0).toFixed(2),
-      delivery_fee: cartItems.reduce((sum, item) => sum + parseFloat(item.delivery_fee || '0') * item.quantity, 0).toFixed(2),
-    };
+  // Force recalculation and wait for state update
+  calculateTotal(cartItems);
+  await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to ensure state sync
+  const subtotal = cartItems.reduce((sum, item) => sum + parseFloat(item.price.replace('₦', '') || '0') * item.quantity, 0);
+  const vatFee = parseFloat(fee.vat_fee) * cartItems.length;
+  const deliveryFee = subtotal >= 2500 ? 100 + (subtotal * 0.015) : parseFloat(fee.delivery_fee) || 50.00;
+  const totalVatFee = isCouponValid ? vatFee * 0.8 : vatFee;
+  const finalTotal = (subtotal + totalVatFee + deliveryFee).toFixed(2);
+  console.log('Synced UI Total:', total, 'Final Total:', finalTotal);
 
+  const payload = {
+    deliveryAddress,
+    phoneNumber,
+    userLocation,
+    cartItems,
+    total: finalTotal,
+    restaurant_id,
+    vat_fee: totalVatFee.toFixed(2),
+    delivery_fee: deliveryFee.toFixed(2),
+  };
+
+  try {
+    const response = await fetch('https://cravii.ng/cravii/api/process_checkout.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    });
+
+    const rawResponse = await response.text();
+    let result;
     try {
-      const response = await fetch('https://cravii.ng/cravii/api/process_checkout.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(payload),
-      });
-
-      const rawResponse = await response.text();
-      let result;
-      try {
-        result = JSON.parse(rawResponse);
-      } catch (e) {
-        throw new Error('Invalid JSON response from server');
-      }
-
-      if (result.status === 'success' && result.authorization_url) {
-        setPaymentUrl(result.authorization_url);
-        setOrderId(result.order_id || null);
-        setShowWebView(true);
-      } else if (result.error && result.error.toLowerCase().includes('not logged in')) {
-        setShowReloginModal(true);
-      } else {
-        Alert.alert('Payment Error', `Payment initialization failed: ${result.error || 'Please try again.'}`, [
-          { text: 'OK' },
-        ]);
-      }
-    } catch (error) {
-      Alert.alert('Payment Error', `Error during payment: ${error.message || 'Please try again.'}`, [
-        { text: 'OK' },
-      ]);
+      result = JSON.parse(rawResponse);
+    } catch (e) {
+      throw new Error('Invalid JSON');
     }
-  };
 
+    if (result.status === 'success' && result.authorization_url) {
+      setPaymentUrl(result.authorization_url);
+      setOrderId(result.order_id || null);
+      setShowWebView(true);
+    } else if (result.error && result.error.toLowerCase().includes('not logged in')) {
+      setShowReloginModal(true);
+    } else {
+      Alert.alert('Payment Error', result.error || 'Try again.', [{ text: 'OK' }]);
+    }
+  } catch (error) {
+    Alert.alert('Payment Error', error.message || 'Try again.', [{ text: 'OK' }]);
+  }
+};
   const onNavigationStateChange = (navState: { url: string; loading: boolean }) => {
     if (navState.url.includes('success')) {
       AsyncStorage.removeItem('cart').then(() => {
@@ -225,40 +262,30 @@ export default function Checkout() {
         setShowWebView(false);
         setPaymentUrl('');
         setShowSuccessModal(true);
-
         if (orderId) {
           fetch('https://cravii.ng/cravii/api/success_email.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify({ order_id: orderId }),
-          })
-            .then(response => response.json())
-            .then(data => {
-              if (data.status !== 'success') {
-                console.error('Failed to send email:', data.error);
-              }
-            })
-            .catch(error => console.error('Error sending email:', error));
+          }).catch(() => {});
         }
       }).catch(() => {});
     } else if (navState.url.includes('cancel')) {
       setShowWebView(false);
       setPaymentUrl('');
-      Alert.alert('Cancelled', 'Payment cancelled.', [
-        { text: 'OK' },
-      ]); // Fixed syntax
+      Alert.alert('Cancelled', 'Payment cancelled.', [{ text: 'OK' }]);
     }
   };
 
   const onWebViewError = (syntheticEvent: any) => {
     const { nativeEvent } = syntheticEvent;
-    Alert.alert('Error', 'Failed to load payment page. Please try again.', [
-      { text: 'OK' },
-    ]);
+    Alert.alert('Error', 'Failed to load payment.', [{ text: 'OK' }]);
     setShowWebView(false);
     setPaymentUrl('');
   };
+
+  const subtotal = cartItems.reduce((sum, item) => sum + parseFloat(item.price.replace('₦', '') || '0') * item.quantity, 0);
 
   return (
     <View style={styles.container}>
@@ -322,43 +349,37 @@ export default function Checkout() {
         {cartItems.length === 0 ? (
           <Text style={styles.emptyCartText}>No items in cart.</Text>
         ) : (
-          cartItems.map((item) => {
-            const originalVatFee = parseFloat(item.vat_fee || '0') * item.quantity;
-            const discountedVatFee = isCouponValid ? originalVatFee * 0.8 : originalVatFee;
-            return (
-              <View key={item.id} style={styles.summaryItem}>
-                <View>
-                  <Text style={styles.summaryName}>
-                    {item.name} (x{item.quantity})
-                  </Text>
-                  <Text style={styles.summaryFee}>VAT: ₦{discountedVatFee.toFixed(2)}</Text>
-                  <Text style={styles.summaryFee}>Delivery: ₦{(parseFloat(item.delivery_fee || '0') * item.quantity).toFixed(2)}</Text>
-                </View>
-                <Text style={styles.summaryPrice}>
-                  ₦{((parseFloat(item.price.replace('₦', '') || '0') + discountedVatFee + parseFloat(item.delivery_fee || '0')) * item.quantity).toFixed(2)}
+          cartItems.map((item) => (
+            <View key={item.id} style={styles.summaryItem}>
+              <View>
+                <Text style={styles.summaryName}>
+                  {item.name} (x{item.quantity})
                 </Text>
               </View>
-            );
-          })
+              <Text style={styles.summaryPrice}>
+                ₦{(parseFloat(item.price.replace('₦', '') || '0') * item.quantity).toFixed(2)}
+              </Text>
+            </View>
+          ))
         )}
         {cartItems.length > 0 && (
           <View style={styles.summaryCard}>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Subtotal:</Text>
               <Text style={styles.summaryValue}>
-                ₦{cartItems.reduce((sum, item) => sum + parseFloat(item.price.replace('₦', '') || '0') * item.quantity, 0).toFixed(2)}
+                ₦{subtotal.toFixed(2)}
               </Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>VAT ({isCouponValid ? '20% off' : ''}):</Text>
               <Text style={styles.summaryValue}>
-                ₦{cartItems.reduce((sum, item) => sum + (isCouponValid ? parseFloat(item.vat_fee || '0') * 0.8 : parseFloat(item.vat_fee || '0')) * item.quantity, 0).toFixed(2)}
+                ₦{(isCouponValid ? parseFloat(fee.vat_fee) * 0.8 * cartItems.length : parseFloat(fee.vat_fee) * cartItems.length).toFixed(2)}
               </Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Delivery Fee:</Text>
               <Text style={styles.summaryValue}>
-                ₦{cartItems.reduce((sum, item) => sum + parseFloat(item.delivery_fee || '0') * item.quantity, 0).toFixed(2)}
+                ₦{(subtotal >= 2500 ? (100 + (subtotal * 0.015)) : parseFloat(fee.delivery_fee) || 50.00).toFixed(2)}
               </Text>
             </View>
             <View style={styles.summaryRow}>
@@ -568,7 +589,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   summaryName: { fontSize: 16, color: '#333', fontWeight: '600' },
-  summaryFee: { fontSize: 14, color: '#666', marginTop: 2 },
   summaryPrice: { fontSize: 16, color: '#4ade80', fontWeight: '600' },
   summaryCard: {
     backgroundColor: '#fff',

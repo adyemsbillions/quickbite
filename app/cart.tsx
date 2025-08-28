@@ -19,8 +19,6 @@ interface CartItem {
   price: string;
   image_url: string;
   restaurantId: string;
-  vat_fee: string;
-  delivery_fee: string;
   quantity: number;
 }
 
@@ -95,9 +93,7 @@ export default function Cart() {
   const total = cartItems
     .reduce((sum, item) => {
       const itemPrice = parseFloat(item.price.replace('₦', '') || '0');
-      const itemVatFee = parseFloat(item.vat_fee || '0');
-      const itemDeliveryFee = parseFloat(item.delivery_fee || '0');
-      return sum + (itemPrice + itemVatFee + itemDeliveryFee) * item.quantity;
+      return sum + itemPrice * item.quantity;
     }, 0)
     .toFixed(2);
 
@@ -145,8 +141,7 @@ export default function Cart() {
               <View style={styles.cartInfo}>
                 <Text style={styles.cartName}>{item.name}</Text>
                 <Text style={styles.cartPrice}>{`₦${item.price}`}</Text>
-                <Text style={styles.feeText}>VAT: ₦{item.vat_fee}</Text>
-                <Text style={styles.feeText}>Delivery: ₦{item.delivery_fee}</Text>
+             
                 <View style={styles.quantityContainer}>
                   <TouchableOpacity
                     style={styles.quantityButton}
