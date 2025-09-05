@@ -15,15 +15,18 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.adyemsbillions.quickbite", 
+      "buildNumber": "1.0.0" 
     },
     "android": {
-      "adaptiveIcon": { 
+      "adaptiveIcon": {
         "foregroundImage": "./assets/images/logo.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.adyemsbillions.quickbite",
-      "versionCode": 1
+      "versionCode": 1,
+      "googleServicesFile": "./google-services.json" 
     },
     "extra": {
       "eas": {
@@ -32,7 +35,15 @@
     },
     "owner": "adyemsbillions",
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png", 
+          "color": "#ff5722", 
+          "sounds": ["./assets/sounds/notification.wav"] 
+        }
+      ]
     ]
   }
 }

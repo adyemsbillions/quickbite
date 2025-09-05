@@ -1,6 +1,5 @@
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { debounce } from 'lodash';
@@ -20,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
-const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://quickbite.truszedproperties.com';
+const API_URL = 'https://cravii.ng';
 const IMAGE_BASE_URL = 'https://cravii.ng/cravii/api/uploads/';
 
 // Placeholder image for fallback
@@ -34,9 +33,9 @@ interface Recipe {
   price: string;
   image_url: string;
   category_id: string;
-  restaurantId: string | number; // Allow string or number to match API response
-  vat_fee: string;
-  delivery_fee: string;
+  restaurantId: number;
+  vat_fee?: string;
+  delivery_fee?: string;
 }
 
 interface Restaurant {
@@ -55,8 +54,45 @@ interface ApiResponse<T> {
   message?: string;
 }
 
-// Sample recipe IDs to fetch (replace with actual IDs from your database)
-const recipeIds = ['1', '2', '3'];
+// Retry fetch with exponential backoff
+const fetchWithRetry = async (url: string, options: RequestInit, retries: number = 4, delay: number = 3000): Promise<Response> => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(url, options);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText || 'Unknown error'}`);
+      }
+      return response;
+    } catch (error) {
+      console.error(`Fetch attempt ${i + 1} failed for ${url}:`, error);
+      if (i < retries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, delay * Math.pow(2, i)));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error('Fetch failed after retries');
+};
+
+// Cache restaurants in AsyncStorage
+const cacheRestaurants = async (restaurants: Restaurant[]) => {
+  try {
+    await AsyncStorage.setItem('cachedRestaurants', JSON.stringify(restaurants));
+  } catch (error) {
+    console.error('Error caching restaurants:', error);
+  }
+};
+
+const getCachedRestaurants = async (): Promise<Restaurant[] | null> => {
+  try {
+    const cached = await AsyncStorage.getItem('cachedRestaurants');
+    return cached ? JSON.parse(cached) : null;
+  } catch (error) {
+    console.error('Error retrieving cached restaurants:', error);
+    return null;
+  }
+};
 
 const RecipeCard = memo(
   ({ result, onPress }: { result: Recipe; onPress: () => void }) => (
@@ -98,31 +134,43 @@ const Search: React.FC = () => {
       try {
         const id = await AsyncStorage.getItem('id');
         if (id) {
-          const userResponse = await fetch(`${API_URL}/quickbite/api/get_user.php?id=${id}`, {
+          const userResponse = await fetchWithRetry(`${API_URL}/cravii/api/get_user.php?id=${id}`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
           });
-          const userResult: ApiResponse<User> = await userResponse.json();
+          const text = await userResponse.text();
+          let userResult: ApiResponse<User>;
+          try {
+            userResult = JSON.parse(text);
+          } catch (parseError) {
+            console.error('JSON Parse error for user data:', parseError, 'Response:', text);
+            throw new Error('Invalid JSON response from server');
+          }
           if (userResult.success) {
             const user = userResult.data;
             setUserName(user.name || 'Jenny');
             setUserLocation(user.location || 'N.Y Bronx');
           } else {
             console.error('Failed to fetch user data:', userResult.message);
-            Toast.show('Failed to fetch user data.', {
-              duration: Toast.durations.SHORT,
+            Toast.show(`Failed to fetch user data: ${userResult.message || 'Unknown error'}`, {
+              duration: Toast.durations.LONG,
               position: Toast.positions.BOTTOM,
               backgroundColor: '#d32f2f',
             });
           }
         } else {
           console.warn('No user ID found in AsyncStorage.');
+          Toast.show('Please log in to continue.', {
+            duration: Toast.durations.LONG,
+            position: Toast.positions.BOTTOM,
+            backgroundColor: '#d32f2f',
+          });
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
-        Toast.show('Network error. Please try again.', {
-          duration: Toast.durations.SHORT,
+        Toast.show('Network error fetching user data. Please try again.', {
+          duration: Toast.durations.LONG,
           position: Toast.positions.BOTTOM,
           backgroundColor: '#d32f2f',
         });
@@ -135,30 +183,60 @@ const Search: React.FC = () => {
   useEffect(() => {
     const fetchRestaurants = async () => {
       try {
-        const fetchedRestaurants: Restaurant[] = [];
-        const restaurantIds = ['1', '2']; // Sample restaurant IDs
-        for (const id of restaurantIds) {
-          const response = await fetch(`${API_URL}/quickbite/api/get_restaurant.php?id=${id}`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
+        const response = await fetchWithRetry(`${API_URL}/cravii/api/get_search_res.php`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+        const text = await response.text();
+        let result: ApiResponse<Restaurant[]>;
+        try {
+          result = JSON.parse(text);
+        } catch (parseError) {
+          console.error('JSON Parse error for restaurants:', parseError, 'Response:', text);
+          throw new Error('Invalid JSON response from server');
+        }
+        if (result.success) {
+          console.log('Fetched restaurants:', result.data);
+          setRestaurants(result.data);
+          await cacheRestaurants(result.data); // Cache restaurants
+        } else {
+          console.warn('Failed to fetch restaurants:', result.message);
+          Toast.show(`Failed to fetch restaurants: ${result.message || 'Unknown error'}`, {
+            duration: Toast.durations.LONG,
+            position: Toast.positions.BOTTOM,
+            backgroundColor: '#d32f2f',
           });
-          const result: ApiResponse<Restaurant> = await response.json();
-          if (result.success) {
-            fetchedRestaurants.push({ id, name: result.data.name });
-          } else {
-            console.warn(`Failed to fetch restaurant with ID ${id}: ${result.message}`);
+          // Fallback to cached restaurants
+          const cached = await getCachedRestaurants();
+          if (cached && cached.length > 0) {
+            console.log('Using cached restaurants:', cached);
+            setRestaurants(cached);
+            Toast.show('Using cached restaurant data due to server error.', {
+              duration: Toast.durations.LONG,
+              position: Toast.positions.BOTTOM,
+              backgroundColor: '#ff9800',
+            });
           }
         }
-        console.log('Fetched restaurants:', fetchedRestaurants);
-        setRestaurants(fetchedRestaurants);
       } catch (error) {
         console.error('Error fetching restaurants:', error);
-        Toast.show('Network error fetching restaurants.', {
-          duration: Toast.durations.SHORT,
+        Toast.show('Unable to load restaurants. Please check your connection and try again.', {
+          duration: Toast.durations.LONG,
           position: Toast.positions.BOTTOM,
           backgroundColor: '#d32f2f',
         });
+        // Fallback to cached restaurants
+        const cached = await getCachedRestaurants();
+        if (cached && cached.length > 0) {
+          console.log('Using cached restaurants:', cached);
+          setRestaurants(cached);
+          Toast.show('Using cached restaurant data due to server error.', {
+            duration: Toast.durations.LONG,
+            position: Toast.positions.BOTTOM,
+            backgroundColor: '#ff9800',
+          });
+        }
       }
     };
     fetchRestaurants();
@@ -168,26 +246,34 @@ const Search: React.FC = () => {
   useEffect(() => {
     const fetchRecipes = async () => {
       try {
-        const fetchedRecipes: Recipe[] = [];
-        for (const id of recipeIds) {
-          const response = await fetch(`${API_URL}/quickbite/api/get_recipe.php?id=${id}`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-          });
-          const result: ApiResponse<Recipe> = await response.json();
-          if (result.success) {
-            fetchedRecipes.push(result.data);
-          } else {
-            console.warn(`Failed to fetch recipe with ID ${id}: ${result.message}`);
-          }
+        const response = await fetchWithRetry(`${API_URL}/cravii/api/get_search_rec.php`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+        const text = await response.text();
+        let result: ApiResponse<Recipe[]>;
+        try {
+          result = JSON.parse(text);
+        } catch (parseError) {
+          console.error('JSON Parse error for recipes:', parseError, 'Response:', text);
+          throw new Error('Invalid JSON response from server');
         }
-        console.log('Fetched recipes:', fetchedRecipes);
-        setRecipes(fetchedRecipes);
+        if (result.success) {
+          console.log('Fetched recipes:', result.data);
+          setRecipes(result.data);
+        } else {
+          console.warn('Failed to fetch recipes:', result.message);
+          Toast.show(`Failed to fetch recipes: ${result.message || 'Unknown error'}`, {
+            duration: Toast.durations.LONG,
+            position: Toast.positions.BOTTOM,
+            backgroundColor: '#d32f2f',
+          });
+        }
       } catch (error) {
         console.error('Error fetching recipes:', error);
-        Toast.show('Network error fetching recipes.', {
-          duration: Toast.durations.SHORT,
+        Toast.show('Unable to load recipes. Please check your connection and try again.', {
+          duration: Toast.durations.LONG,
           position: Toast.positions.BOTTOM,
           backgroundColor: '#d32f2f',
         });
